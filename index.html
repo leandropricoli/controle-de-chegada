@@ -4,14 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Controle de Chegada</title>
-
-  <!-- Manifesto para rodar como app offline no Safari -->
+  
+  <!-- Manifesto -->
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
   <style>
-    /* Estilos */
     body { font-family: Arial, sans-serif; margin: 10px; background: #fff; }
     h1 { font-size: 26px; }
     h2 { margin-top: 20px; font-size: 22px; }
@@ -25,6 +24,7 @@
     }
     input.number-field { width: 80px; }
     input.name-field { width: 95%; margin-top: 2px; }
+    input#event-name { width: 100%; font-size: 18px; padding: 8px; margin-bottom: 20px; }
     button.add { margin-top: 10px; padding: 8px 12px; font-size: 16px; }
     .small-btn { margin-left: 5px; padding: 5px 8px; font-size: 14px; }
     #exportedText { white-space: pre-wrap; margin-top: 20px; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
@@ -36,32 +36,38 @@
 <body>
 
 <h1>Controle de Chegada</h1>
+<input type="text" id="event-name" placeholder="Nome do Evento">
 
-<!-- Botões principais -->
 <button id="toggleDragBtn" onclick="toggleDrag()">Editar Classificação</button>
 <button class="add" onclick="addBlock()">Adicionar Bloco</button>
 <button class="add" onclick="exportResults()">Exportar Resultados</button>
 
-<!-- Área dos blocos -->
 <div id="blocks"></div>
 <div id="exportedText"></div>
 
-<!-- Scripts principais -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
-// Variáveis globais
 let blocks = [];
 let dragEnabled = false;
 let sortables = [];
 
-// Salvar dados no navegador
 function saveData() {
+  const eventName = document.getElementById('event-name').value;
+  const inputs = document.querySelectorAll('.row');
+  inputs.forEach(input => {
+    const numberField = input.querySelector('.number-field');
+    const nameField = input.querySelector('.name-field');
+    if (numberField) numberField.dataset.value = numberField.value;
+    if (nameField) nameField.dataset.value = nameField.value;
+  });
   localStorage.setItem('blocksData', JSON.stringify(blocks));
+  localStorage.setItem('eventName', eventName);
 }
 
-// Carregar dados
 function loadData() {
   const saved = localStorage.getItem('blocksData');
+  const eventName = localStorage.getItem('eventName');
+  if (eventName) document.getElementById('event-name').value = eventName;
   if (saved) {
     blocks = JSON.parse(saved);
   } else {
@@ -77,7 +83,6 @@ function loadData() {
   }
 }
 
-// Criar linha de posição
 function createPositionRow(position) {
   const wrapper = document.createElement('div');
   wrapper.className = 'row';
@@ -99,14 +104,13 @@ function createPositionRow(position) {
   nameInput.placeholder = 'Nome do Atleta';
   nameInput.className = 'name-field';
 
-  // Controle automático do botão ativo
   function updateButtonState() {
     if (numInput.value.trim() !== '' || nameInput.value.trim() !== '') {
       btn.classList.add('active');
-      btn.onclick = null; // Desativa clique manual se preenchido
+      btn.onclick = null;
     } else {
       btn.classList.remove('active');
-      btn.onclick = () => btn.classList.toggle('active'); // Permite clique manual se vazio
+      btn.onclick = () => btn.classList.toggle('active');
     }
   }
 
@@ -129,7 +133,6 @@ function createPositionRow(position) {
   return wrapper;
 }
 
-// Criar categoria
 function createCategory(category, blockIndex, categoryIndex) {
   const div = document.createElement('div');
   div.className = 'category';
@@ -148,6 +151,18 @@ function createCategory(category, blockIndex, categoryIndex) {
     saveData();
   };
 
+  const setPositionsBtn = document.createElement('button');
+  setPositionsBtn.textContent = "Quantidade de posições";
+  setPositionsBtn.className = "small-btn";
+  setPositionsBtn.onclick = () => {
+    const newPos = prompt('Quantas posições para esta categoria?', category.positions);
+    if (newPos && !isNaN(newPos)) {
+      category.positions = parseInt(newPos);
+      saveData();
+      renderBlocks();
+    }
+  };
+
   const removeCategoryBtn = document.createElement('button');
   removeCategoryBtn.textContent = "Remover Categoria";
   removeCategoryBtn.className = "small-btn";
@@ -161,6 +176,7 @@ function createCategory(category, blockIndex, categoryIndex) {
 
   div.appendChild(title);
   div.appendChild(clearBtn);
+  div.appendChild(setPositionsBtn);
   div.appendChild(removeCategoryBtn);
 
   const container = document.createElement('div');
@@ -187,7 +203,6 @@ function createCategory(category, blockIndex, categoryIndex) {
   return div;
 }
 
-// Atualizar números dos botões após arrastar
 function updatePositions(container) {
   const rows = container.querySelectorAll('.row');
   rows.forEach((row, index) => {
@@ -196,7 +211,6 @@ function updatePositions(container) {
   });
 }
 
-// Alternar drag
 function toggleDrag() {
   dragEnabled = !dragEnabled;
   sortables.forEach(s => s.option('disabled', !dragEnabled));
@@ -208,7 +222,6 @@ function toggleDrag() {
   }
 }
 
-// Renderizar os blocos
 function renderBlocks() {
   const container = document.getElementById('blocks');
   container.innerHTML = '';
@@ -229,20 +242,7 @@ function renderBlocks() {
     addCategoryBtn.onclick = () => {
       const catName = prompt('Nome da nova categoria:');
       if (catName) {
-        blocks[blockIndex].categories.push({name: catName, positions: blocks[blockIndex].positions});
-        saveData();
-        renderBlocks();
-      }
-    };
-
-    const setPositionsBtn = document.createElement('button');
-    setPositionsBtn.textContent = "Editar posições";
-    setPositionsBtn.className = "small-btn";
-    setPositionsBtn.onclick = () => {
-      const newPos = prompt('Quantas posições (ex: 5, 10)?', block.positions);
-      if (newPos && !isNaN(newPos)) {
-        blocks[blockIndex].positions = parseInt(newPos);
-        blocks[blockIndex].categories.forEach(c => c.positions = block.positions);
+        blocks[blockIndex].categories.push({name: catName, positions: 5});
         saveData();
         renderBlocks();
       }
@@ -261,7 +261,6 @@ function renderBlocks() {
 
     div.appendChild(blockTitle);
     div.appendChild(addCategoryBtn);
-    div.appendChild(setPositionsBtn);
     div.appendChild(removeBlockBtn);
 
     block.categories.forEach((category, categoryIndex) => {
@@ -272,7 +271,6 @@ function renderBlocks() {
   });
 }
 
-// Adicionar novo bloco
 function addBlock() {
   const name = prompt('Nome do novo bloco (ex: 5km, 10km):');
   if (name) {
@@ -289,9 +287,12 @@ function addBlock() {
   }
 }
 
-// Exportar resultados
 function exportResults() {
   let text = "";
+  const eventName = document.getElementById('event-name').value;
+  if (eventName) {
+    text += `Evento: ${eventName}\n\n`;
+  }
   blocks.forEach(block => {
     text += `Bloco: ${block.name}\n`;
     block.categories.forEach(cat => {
@@ -314,15 +315,13 @@ function exportResults() {
   link.href = URL.createObjectURL(blob);
   link.download = "resultados.txt";
   link.click();
-
   document.getElementById('exportedText').textContent = text;
 }
 
-// Inicializar o app
+// Inicialização
 loadData();
 renderBlocks();
 </script>
 
 </body>
 </html>
-
