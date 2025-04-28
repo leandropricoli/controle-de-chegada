@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Controle de Chegada</title>
-  
+
   <!-- Manifesto -->
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -51,15 +51,29 @@ let blocks = [];
 let dragEnabled = false;
 let sortables = [];
 
-function saveData() {
-  const eventName = document.getElementById('event-name').value;
-  const inputs = document.querySelectorAll('.row');
-  inputs.forEach(input => {
-    const numberField = input.querySelector('.number-field');
-    const nameField = input.querySelector('.name-field');
-    if (numberField) numberField.dataset.value = numberField.value;
-    if (nameField) nameField.dataset.value = nameField.value;
+function saveInputsToBlocks() {
+  document.querySelectorAll('.block').forEach((blockEl, blockIndex) => {
+    const block = blocks[blockIndex];
+    block.name = blockEl.querySelector('h2')?.textContent || block.name;
+    block.categories.forEach((cat, catIndex) => {
+      const catEl = blockEl.querySelectorAll('.category')[catIndex];
+      if (catEl) {
+        cat.name = catEl.querySelector('h3')?.textContent || cat.name;
+        const rows = catEl.querySelectorAll('.row');
+        cat.entries = [];
+        rows.forEach((row, idx) => {
+          const number = row.querySelector('.number-field')?.value || '';
+          const name = row.querySelector('.name-field')?.value || '';
+          cat.entries.push({ number, name });
+        });
+      }
+    });
   });
+}
+
+function saveData() {
+  saveInputsToBlocks();
+  const eventName = document.getElementById('event-name').value;
   localStorage.setItem('blocksData', JSON.stringify(blocks));
   localStorage.setItem('eventName', eventName);
 }
@@ -75,15 +89,15 @@ function loadData() {
       name: "5km",
       positions: 5,
       categories: [
-        {name: "Masculino", positions: 5},
-        {name: "Feminino", positions: 5}
+        {name: "Masculino", positions: 5, entries: []},
+        {name: "Feminino", positions: 5, entries: []}
       ]
     }];
     saveData();
   }
 }
 
-function createPositionRow(position) {
+function createPositionRow(position, entry) {
   const wrapper = document.createElement('div');
   wrapper.className = 'row';
 
@@ -98,11 +112,13 @@ function createPositionRow(position) {
   numInput.pattern = '[0-9]*';
   numInput.placeholder = 'Número';
   numInput.className = 'number-field';
+  if (entry?.number) numInput.value = entry.number;
 
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.placeholder = 'Nome do Atleta';
   nameInput.className = 'name-field';
+  if (entry?.name) nameInput.value = entry.name;
 
   function updateButtonState() {
     if (numInput.value.trim() !== '' || nameInput.value.trim() !== '') {
@@ -118,7 +134,6 @@ function createPositionRow(position) {
     updateButtonState();
     saveData();
   });
-
   nameInput.addEventListener('input', () => {
     updateButtonState();
     saveData();
@@ -182,8 +197,8 @@ function createCategory(category, blockIndex, categoryIndex) {
   const container = document.createElement('div');
   container.className = 'sortable';
 
-  for (let i = 1; i <= category.positions; i++) {
-    container.appendChild(createPositionRow(i));
+  for (let i = 0; i < category.positions; i++) {
+    container.appendChild(createPositionRow(i + 1, category.entries?.[i]));
   }
 
   div.appendChild(container);
@@ -242,7 +257,7 @@ function renderBlocks() {
     addCategoryBtn.onclick = () => {
       const catName = prompt('Nome da nova categoria:');
       if (catName) {
-        blocks[blockIndex].categories.push({name: catName, positions: 5});
+        blocks[blockIndex].categories.push({name: catName, positions: 5, entries: []});
         saveData();
         renderBlocks();
       }
@@ -278,8 +293,8 @@ function addBlock() {
       name: name,
       positions: 5,
       categories: [
-        {name: 'Masculino', positions: 5},
-        {name: 'Feminino', positions: 5}
+        {name: 'Masculino', positions: 5, entries: []},
+        {name: 'Feminino', positions: 5, entries: []}
       ]
     });
     saveData();
@@ -297,15 +312,10 @@ function exportResults() {
     text += `Bloco: ${block.name}\n`;
     block.categories.forEach(cat => {
       text += `Categoria: ${cat.name}\n`;
-      document.querySelectorAll('.category').forEach(category => {
-        category.querySelectorAll('.row').forEach((row) => {
-          const btn = row.querySelector('button');
-          const num = row.querySelector('input[type="tel"]')?.value || '';
-          const name = row.querySelector('input[type="text"]')?.value || '';
-          if (num || name) {
-            text += `${btn.textContent}º - Número: ${num} Nome: ${name}\n`;
-          }
-        });
+      cat.entries?.forEach((entry, index) => {
+        if (entry.number || entry.name) {
+          text += `${index + 1}º - Número: ${entry.number} Nome: ${entry.name}\n`;
+        }
       });
       text += "\n";
     });
