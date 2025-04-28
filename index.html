@@ -40,6 +40,7 @@
 
 <button id="toggleDragBtn" onclick="toggleDrag()">Editar Classificação</button>
 <button class="add" onclick="addBlock()">Adicionar Bloco</button>
+<button class="add" onclick="clearAll()">Limpar Tudo</button>
 <button class="add" onclick="exportResults()">Exportar Resultados</button>
 
 <div id="blocks"></div>
@@ -94,6 +95,16 @@ function loadData() {
       ]
     }];
     saveData();
+  }
+}
+
+function clearAll() {
+  if (confirm('Tem certeza que deseja limpar tudo?')) {
+    blocks = [];
+    localStorage.removeItem('blocksData');
+    localStorage.removeItem('eventName');
+    document.getElementById('event-name').value = '';
+    renderBlocks();
   }
 }
 
