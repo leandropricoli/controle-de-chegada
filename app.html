@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Chegada</title>
+
+  <!-- Manifesto para rodar como app offline no Safari -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <style>
+    /* Estilos */
+    body { font-family: Arial, sans-serif; margin: 10px; background: #fff; }
+    h1 { font-size: 26px; }
+    h2 { margin-top: 20px; font-size: 22px; }
+    .block { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; border-radius: 8px; }
+    .category { margin-top: 10px; padding: 10px; border: 1px dashed #aaa; border-radius: 8px; margin-bottom: 10px; }
+    .row { display: flex; align-items: center; margin-bottom: 4px; }
+    .position-button { width: 40px; height: 40px; margin-right: 10px; background-color: red; color: white; font-size: 16px; border: none; border-radius: 5px; }
+    .position-button.active { background-color: green; }
+    input[type="tel"], input[type="text"] {
+      font-size: 16px; padding: 5px; margin-right: 5px; border: 1px solid #ccc; border-radius: 5px;
+    }
+    input.number-field { width: 80px; }
+    input.name-field { width: 95%; margin-top: 2px; }
+    button.add { margin-top: 10px; padding: 8px 12px; font-size: 16px; }
+    .small-btn { margin-left: 5px; padding: 5px 8px; font-size: 14px; }
+    #exportedText { white-space: pre-wrap; margin-top: 20px; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+    #toggleDragBtn { background-color: #ccc; border: none; padding: 8px 12px; font-size: 16px; margin-top: 10px; }
+    #toggleDragBtn.active { background-color: #007BFF; color: white; }
+  </style>
+</head>
+
+<body>
+
+<h1>Controle de Chegada</h1>
+
+<!-- Botões principais -->
+<button id="toggleDragBtn" onclick="toggleDrag()">Editar Classificação</button>
+<button class="add" onclick="addBlock()">Adicionar Bloco</button>
+<button class="add" onclick="exportResults()">Exportar Resultados</button>
+
+<!-- Área dos blocos -->
+<div id="blocks"></div>
+<div id="exportedText"></div>
+
+<!-- Scripts principais -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+// Variáveis globais
+let blocks = [];
+let dragEnabled = false;
+let sortables = [];
+
+// Salvar dados no navegador
+function saveData() {
+  localStorage.setItem('blocksData', JSON.stringify(blocks));
+}
+
+// Carregar dados
+function loadData() {
+  const saved = localStorage.getItem('blocksData');
+  if (saved) {
+    blocks = JSON.parse(saved);
+  } else {
+    blocks = [{
+      name: "5km",
+      positions: 5,
+      categories: [
+        {name: "Masculino", positions: 5},
+        {name: "Feminino", positions: 5}
+      ]
+    }];
+    saveData();
+  }
+}
+
+// Criar linha de posição
+function createPositionRow(position) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'row';
+
+  const btn = document.createElement('button');
+  btn.className = 'position-button';
+  btn.textContent = position;
+  btn.disabled = false;
+
+  const numInput = document.createElement('input');
+  numInput.type = 'tel';
+  numInput.inputMode = 'numeric';
+  numInput.pattern = '[0-9]*';
+  numInput.placeholder = 'Número';
+  numInput.className = 'number-field';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = 'Nome do Atleta';
+  nameInput.className = 'name-field';
+
+  // Controle automático do botão ativo
+  function updateButtonState() {
+    if (numInput.value.trim() !== '' || nameInput.value.trim() !== '') {
+      btn.classList.add('active');
+      btn.onclick = null; // Desativa clique manual se preenchido
+    } else {
+      btn.classList.remove('active');
+      btn.onclick = () => btn.classList.toggle('active'); // Permite clique manual se vazio
+    }
+  }
+
+  numInput.addEventListener('input', () => {
+    updateButtonState();
+    saveData();
+  });
+
+  nameInput.addEventListener('input', () => {
+    updateButtonState();
+    saveData();
+  });
+
+  updateButtonState();
+
+  wrapper.appendChild(btn);
+  wrapper.appendChild(numInput);
+  wrapper.appendChild(nameInput);
+
+  return wrapper;
+}
+
+// Criar categoria
+function createCategory(category, blockIndex, categoryIndex) {
+  const div = document.createElement('div');
+  div.className = 'category';
+
+  const title = document.createElement('h3');
+  title.contentEditable = true;
+  title.textContent = category.name;
+  title.addEventListener('input', saveData);
+
+  const clearBtn = document.createElement('button');
+  clearBtn.textContent = "Limpar";
+  clearBtn.className = "small-btn";
+  clearBtn.onclick = () => {
+    div.querySelectorAll('.position-button').forEach(btn => btn.classList.remove('active'));
+    div.querySelectorAll('input').forEach(input => input.value = '');
+    saveData();
+  };
+
+  const removeCategoryBtn = document.createElement('button');
+  removeCategoryBtn.textContent = "Remover Categoria";
+  removeCategoryBtn.className = "small-btn";
+  removeCategoryBtn.onclick = () => {
+    if (confirm('Deseja remover esta categoria?')) {
+      blocks[blockIndex].categories.splice(categoryIndex, 1);
+      saveData();
+      renderBlocks();
+    }
+  };
+
+  div.appendChild(title);
+  div.appendChild(clearBtn);
+  div.appendChild(removeCategoryBtn);
+
+  const container = document.createElement('div');
+  container.className = 'sortable';
+
+  for (let i = 1; i <= category.positions; i++) {
+    container.appendChild(createPositionRow(i));
+  }
+
+  div.appendChild(container);
+
+  setTimeout(() => {
+    const sortable = new Sortable(container, {
+      animation: 150,
+      disabled: !dragEnabled,
+      onEnd: () => {
+        updatePositions(container);
+        saveData();
+      }
+    });
+    sortables.push(sortable);
+  }, 0);
+
+  return div;
+}
+
+// Atualizar números dos botões após arrastar
+function updatePositions(container) {
+  const rows = container.querySelectorAll('.row');
+  rows.forEach((row, index) => {
+    const button = row.querySelector('.position-button');
+    button.textContent = index + 1;
+  });
+}
+
+// Alternar drag
+function toggleDrag() {
+  dragEnabled = !dragEnabled;
+  sortables.forEach(s => s.option('disabled', !dragEnabled));
+  const btn = document.getElementById('toggleDragBtn');
+  if (dragEnabled) {
+    btn.classList.add('active');
+  } else {
+    btn.classList.remove('active');
+  }
+}
+
+// Renderizar os blocos
+function renderBlocks() {
+  const container = document.getElementById('blocks');
+  container.innerHTML = '';
+  sortables = [];
+
+  blocks.forEach((block, blockIndex) => {
+    const div = document.createElement('div');
+    div.className = 'block';
+
+    const blockTitle = document.createElement('h2');
+    blockTitle.contentEditable = true;
+    blockTitle.textContent = block.name;
+    blockTitle.addEventListener('input', saveData);
+
+    const addCategoryBtn = document.createElement('button');
+    addCategoryBtn.textContent = "Adicionar Categoria";
+    addCategoryBtn.className = "small-btn";
+    addCategoryBtn.onclick = () => {
+      const catName = prompt('Nome da nova categoria:');
+      if (catName) {
+        blocks[blockIndex].categories.push({name: catName, positions: blocks[blockIndex].positions});
+        saveData();
+        renderBlocks();
+      }
+    };
+
+    const setPositionsBtn = document.createElement('button');
+    setPositionsBtn.textContent = "Editar posições";
+    setPositionsBtn.className = "small-btn";
+    setPositionsBtn.onclick = () => {
+      const newPos = prompt('Quantas posições (ex: 5, 10)?', block.positions);
+      if (newPos && !isNaN(newPos)) {
+        blocks[blockIndex].positions = parseInt(newPos);
+        blocks[blockIndex].categories.forEach(c => c.positions = block.positions);
+        saveData();
+        renderBlocks();
+      }
+    };
+
+    const removeBlockBtn = document.createElement('button');
+    removeBlockBtn.textContent = "Remover Bloco";
+    removeBlockBtn.className = "small-btn";
+    removeBlockBtn.onclick = () => {
+      if (confirm('Deseja remover este bloco?')) {
+        blocks.splice(blockIndex, 1);
+        saveData();
+        renderBlocks();
+      }
+    };
+
+    div.appendChild(blockTitle);
+    div.appendChild(addCategoryBtn);
+    div.appendChild(setPositionsBtn);
+    div.appendChild(removeBlockBtn);
+
+    block.categories.forEach((category, categoryIndex) => {
+      div.appendChild(createCategory(category, blockIndex, categoryIndex));
+    });
+
+    container.appendChild(div);
+  });
+}
+
+// Adicionar novo bloco
+function addBlock() {
+  const name = prompt('Nome do novo bloco (ex: 5km, 10km):');
+  if (name) {
+    blocks.push({
+      name: name,
+      positions: 5,
+      categories: [
+        {name: 'Masculino', positions: 5},
+        {name: 'Feminino', positions: 5}
+      ]
+    });
+    saveData();
+    renderBlocks();
+  }
+}
+
+// Exportar resultados
+function exportResults() {
+  let text = "";
+  blocks.forEach(block => {
+    text += `Bloco: ${block.name}\n`;
+    block.categories.forEach(cat => {
+      text += `Categoria: ${cat.name}\n`;
+      document.querySelectorAll('.category').forEach(category => {
+        category.querySelectorAll('.row').forEach((row) => {
+          const btn = row.querySelector('button');
+          const num = row.querySelector('input[type="tel"]')?.value || '';
+          const name = row.querySelector('input[type="text"]')?.value || '';
+          if (num || name) {
+            text += `${btn.textContent}º - Número: ${num} Nome: ${name}\n`;
+          }
+        });
+      });
+      text += "\n";
+    });
+  });
+  const blob = new Blob([text], {type: "text/plain"});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = "resultados.txt";
+  link.click();
+
+  document.getElementById('exportedText').textContent = text;
+}
+
+// Inicializar o app
+loadData();
+renderBlocks();
+</script>
+
+</body>
+</html>
+
