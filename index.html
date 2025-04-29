@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Controle de Chegada</title>
-
-  <!-- Manifesto -->
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -48,8 +46,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
-// Todas as funções (JavaScript) começam aqui
-
 let blocks = [];
 let dragEnabled = false;
 let sortables = [];
@@ -248,9 +244,12 @@ function renderBlocks() {
     addCategoryBtn.onclick = () => {
       const catName = prompt('Nome da nova categoria:');
       if (catName) {
-        blocks[blockIndex].categories.push({name: catName, positions: 5, entries: []});
-        saveData();
-        renderBlocks();
+        const positions = parseInt(prompt(`Quantas posições para a categoria "${catName}"?`));
+        if (!isNaN(positions) && positions > 0) {
+          blocks[blockIndex].categories.push({name: catName, positions: positions, entries: []});
+          saveData();
+          renderBlocks();
+        }
       }
     };
 
@@ -324,7 +323,7 @@ function exportResults() {
   document.getElementById('exportedText').textContent = text;
 }
 
-// Inicializar
+// Inicialização
 loadData();
 renderBlocks();
 
