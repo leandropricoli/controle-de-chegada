@@ -7,7 +7,6 @@
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-
   <style>
     body { font-family: Arial, sans-serif; margin: 10px; background: #fff; }
     h1 { font-size: 26px; }
@@ -30,7 +29,6 @@
     #toggleDragBtn.active { background-color: #007BFF; color: white; }
   </style>
 </head>
-
 <body>
 
 <h1>Controle de Chegada</h1>
@@ -45,7 +43,9 @@
 <div id="exportedText"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
 <script>
+// Código JavaScript completo aqui
 let blocks = [];
 let dragEnabled = false;
 let sortables = [];
@@ -169,7 +169,7 @@ function createCategory(category, blockIndex, categoryIndex) {
   removeCategoryBtn.textContent = "Remover Categoria";
   removeCategoryBtn.className = "small-btn";
   removeCategoryBtn.onclick = () => {
-    if (confirm('Deseja remover esta categoria?')) {
+    if (confirm('Tem certeza que deseja remover esta categoria?')) {
       blocks[blockIndex].categories.splice(categoryIndex, 1);
       saveData();
       renderBlocks();
@@ -257,7 +257,7 @@ function renderBlocks() {
     removeBlockBtn.textContent = "Remover Bloco";
     removeBlockBtn.className = "small-btn";
     removeBlockBtn.onclick = () => {
-      if (confirm('Deseja remover este bloco?')) {
+      if (confirm('Tem certeza que deseja remover este bloco?')) {
         blocks.splice(blockIndex, 1);
         saveData();
         renderBlocks();
@@ -279,7 +279,7 @@ function renderBlocks() {
 function addBlock() {
   const name = prompt('Nome do novo bloco:');
   if (!name) return;
-  
+
   const numCategories = parseInt(prompt('Quantas categorias esse bloco terá?'));
   if (isNaN(numCategories) || numCategories <= 0) return;
 
@@ -323,10 +323,9 @@ function exportResults() {
   document.getElementById('exportedText').textContent = text;
 }
 
-// Inicialização
+// Inicializar
 loadData();
 renderBlocks();
-
 </script>
 
 </body>
