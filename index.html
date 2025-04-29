@@ -48,6 +48,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
+// Todas as funções (JavaScript) começam aqui
+
 let blocks = [];
 let dragEnabled = false;
 let sortables = [];
@@ -55,20 +57,22 @@ let sortables = [];
 function saveInputsToBlocks() {
   document.querySelectorAll('.block').forEach((blockEl, blockIndex) => {
     const block = blocks[blockIndex];
-    block.name = blockEl.querySelector('h2')?.textContent || block.name;
-    block.categories.forEach((cat, catIndex) => {
-      const catEl = blockEl.querySelectorAll('.category')[catIndex];
-      if (catEl) {
-        cat.name = catEl.querySelector('h3')?.textContent || cat.name;
-        const rows = catEl.querySelectorAll('.row');
-        cat.entries = [];
-        rows.forEach((row, idx) => {
-          const number = row.querySelector('.number-field')?.value || '';
-          const name = row.querySelector('.name-field')?.value || '';
-          cat.entries.push({ number, name });
-        });
-      }
-    });
+    if (block) {
+      block.name = blockEl.querySelector('h2')?.textContent || block.name;
+      block.categories.forEach((cat, catIndex) => {
+        const catEl = blockEl.querySelectorAll('.category')[catIndex];
+        if (catEl) {
+          cat.name = catEl.querySelector('h3')?.textContent || cat.name;
+          const rows = catEl.querySelectorAll('.row');
+          cat.entries = [];
+          rows.forEach((row) => {
+            const number = row.querySelector('.number-field')?.value || '';
+            const name = row.querySelector('.name-field')?.value || '';
+            cat.entries.push({ number, name });
+          });
+        }
+      });
+    }
   });
 }
 
@@ -86,14 +90,7 @@ function loadData() {
   if (saved) {
     blocks = JSON.parse(saved);
   } else {
-    blocks = [{
-      name: "5km",
-      positions: 5,
-      categories: [
-        {name: "Masculino", positions: 5, entries: []},
-        {name: "Feminino", positions: 5, entries: []}
-      ]
-    }];
+    blocks = [];
     saveData();
   }
 }
@@ -116,6 +113,7 @@ function createPositionRow(position, entry) {
   btn.className = 'position-button';
   btn.textContent = position;
   btn.disabled = false;
+  btn.onclick = () => btn.classList.toggle('active');
 
   const numInput = document.createElement('input');
   numInput.type = 'tel';
@@ -131,26 +129,8 @@ function createPositionRow(position, entry) {
   nameInput.className = 'name-field';
   if (entry?.name) nameInput.value = entry.name;
 
-  function updateButtonState() {
-    if (numInput.value.trim() !== '' || nameInput.value.trim() !== '') {
-      btn.classList.add('active');
-      btn.onclick = null;
-    } else {
-      btn.classList.remove('active');
-      btn.onclick = () => btn.classList.toggle('active');
-    }
-  }
-
-  numInput.addEventListener('input', () => {
-    updateButtonState();
-    saveData();
-  });
-  nameInput.addEventListener('input', () => {
-    updateButtonState();
-    saveData();
-  });
-
-  updateButtonState();
+  numInput.addEventListener('input', saveData);
+  nameInput.addEventListener('input', saveData);
 
   wrapper.appendChild(btn);
   wrapper.appendChild(numInput);
@@ -298,19 +278,24 @@ function renderBlocks() {
 }
 
 function addBlock() {
-  const name = prompt('Nome do novo bloco (ex: 5km, 10km):');
-  if (name) {
-    blocks.push({
-      name: name,
-      positions: 5,
-      categories: [
-        {name: 'Masculino', positions: 5, entries: []},
-        {name: 'Feminino', positions: 5, entries: []}
-      ]
-    });
-    saveData();
-    renderBlocks();
+  const name = prompt('Nome do novo bloco:');
+  if (!name) return;
+  
+  const numCategories = parseInt(prompt('Quantas categorias esse bloco terá?'));
+  if (isNaN(numCategories) || numCategories <= 0) return;
+
+  const categories = [];
+  for (let i = 0; i < numCategories; i++) {
+    const catName = prompt(`Nome da categoria ${i+1}:`);
+    if (!catName) return;
+    const positions = parseInt(prompt(`Quantas posições para a categoria "${catName}"?`));
+    if (isNaN(positions) || positions <= 0) return;
+    categories.push({name: catName, positions: positions, entries: []});
   }
+
+  blocks.push({name: name, categories: categories});
+  saveData();
+  renderBlocks();
 }
 
 function exportResults() {
@@ -339,9 +324,10 @@ function exportResults() {
   document.getElementById('exportedText').textContent = text;
 }
 
-// Inicialização
+// Inicializar
 loadData();
 renderBlocks();
+
 </script>
 
 </body>
