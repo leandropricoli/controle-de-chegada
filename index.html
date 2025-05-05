@@ -1,409 +1,721 @@
 <!DOCTYPE html>
-<html lang="="pt-BR">
+<html lang="pt-BR">
 <head>
-  <!-- SortableJS para drag and drop -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-
-<!-- SheetJS para leitura de XLSX -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <meta charset="UTF-8">
-  <title>Controle de Chegada</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="manifest" href="manifest.json">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 10px;
-      background-color: #f2f2f2;
-    }
-
-    header {
-      background: #007bff;
-      color: white;
-      padding: 15px;
-      text-align: center;
-    }
-
-    .bloco, .categoria {
-      background: white;
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 5px;
-    }
-
-    .posicao {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
-      gap: 10px;
-    }
-
-    .pos-btn {
-      width: 35px;
-      height: 35px;
-      border: none;
-      color: white;
-      border-radius: 50%;
-      background-color: red;
-      cursor: pointer;
-    }
-
-    .pos-btn.ativa {
-      background-color: green;
-    }
-
-    input[type="text"], input[type="number"], input[type="tel"] {
-      flex: 1;
-      padding: 5px;
-      font-size: 14px;
-    }
-
-    .botoes {
-      margin-top: 10px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      padding: 8px 12px;
-      font-size: 14px;
-      border: none;
-      border-radius: 4px;
-      background-color: #007bff;
-      color: white;
-      cursor: pointer;
-    }
-
-    button.red {
-      background-color: #dc3545;
-    }
-
-    button.gray {
-      background-color: #6c757d;
-    }
-
-    .draggable {
-      cursor: move;
-    }
-
-    .campo-evento {
-      margin: 10px 0;
-    }
-
-    .campo-evento input {
-      width: 100%;
-      padding: 8px;
-      font-size: 16px;
-    }
-
-    .consulta-resultado {
-      margin-top: 10px;
-      padding: 10px;
-      background: #e9ecef;
-      border-radius: 5px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Controle de Chegada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .draggable {
+            touch-action: none;
+            user-select: none;
+        }
+        .sortable-chosen {
+            opacity: 0.5;
+        }
+        .sortable-ghost {
+            opacity: 0;
+        }
+        @media (max-width: 640px) {
+            .mobile-flex-col {
+                flex-direction: column;
+            }
+            .mobile-w-full {
+                width: 100% !important;
+            }
+        }
+    </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-6 max-w-3xl">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white rounded-lg shadow-md p-4 mb-6">
+            <h1 class="text-2xl font-bold text-center">CONTROLE DE CHEGADA</h1>
+        </header>
 
-  <script>
-let baseAtletas = [];
-let classificacaoEditavel = false;
-let dadosPreenchidos = {};
-let modalCampoAtual = null;
+        <!-- Event Name -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <label for="eventName" class="block text-gray-700 font-medium mb-2">NOME DO EVENTO</label>
+            <input type="text" id="eventName" placeholder="Digite o nome da corrida" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
 
-document.getElementById("nomeEvento").addEventListener("input", () => {
-  localStorage.setItem("nomeEvento", document.getElementById("nomeEvento").value);
-});
+        <!-- Controls -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6 flex flex-wrap gap-4">
+            <button id="addDistance" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center">
+                <i class="fas fa-plus mr-2"></i> Adicionar Distância
+            </button>
+            <button id="clearAll" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium flex items-center">
+                <i class="fas fa-trash-alt mr-2"></i> Limpar Tudo
+            </button>
+            <button id="exportData" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center">
+                <i class="fas fa-file-export mr-2"></i> Exportar Dados
+            </button>
+            <button id="importData" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center">
+                <i class="fas fa-file-import mr-2"></i> Importar Dados
+            </button>
+            <input type="file" id="fileInput" class="hidden" accept=".json,.csv,.xlsx">
+        </div>
 
-window.onload = () => {
-  const nomeEvento = localStorage.getItem("nomeEvento");
-  if (nomeEvento) document.getElementById("nomeEvento").value = nomeEvento;
-  carregarDados();
-};
+        <!-- Distances Container -->
+        <div id="distancesContainer" class="space-y-6"></div>
 
-function adicionarBloco() {
-  const nome = prompt("Nome do bloco (ex: 5km, 10km):");
-  if (!nome) return;
-  const container = document.getElementById("containerBlocos");
-  const bloco = document.createElement("div");
-  bloco.className = "bloco";
-  bloco.innerHTML = `<h3>${nome}</h3>
-    <div class="botoes">
-      <button onclick="adicionarCategoria(this)">Adicionar Categoria</button>
-      <button class="red" onclick="removerBloco(this)">Remover Bloco</button>
-    </div>`;
-  container.appendChild(bloco);
-  salvarDados();
-}
+        <!-- Export Modal -->
+        <div id="exportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 class="text-xl font-bold mb-4">Exportar Dados</h3>
+                <div class="space-y-4">
+                    <button id="exportJSON" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
+                        Exportar como JSON
+                    </button>
+                    <button id="exportCSV" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium">
+                        Exportar como CSV
+                    </button>
+                    <button id="exportExcel" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium">
+                        Exportar como Excel
+                    </button>
+                </div>
+                <div class="mt-6">
+                    <button id="closeExportModal" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
 
-function adicionarCategoria(botao) {
-  const nome = prompt("Nome da categoria (ex: Masculino, Feminino):");
-  if (!nome) return;
-  const qtd = prompt("Quantas posições?");
-  const num = parseInt(qtd);
-  if (isNaN(num) || num <= 0) return;
-  const bloco = botao.closest(".bloco");
-  const categoria = document.createElement("div");
-  categoria.className = "categoria";
-  categoria.innerHTML = `<h4>${nome}</h4>
-    <div class="botoes">
-      <button class="red" onclick="removerCategoria(this)">Remover Categoria</button>
-    </div>`;
-  for (let i = 1; i <= num; i++) {
-    const linha = document.createElement("div");
-    linha.className = "posicao draggable";
-    linha.innerHTML = `
-      <button class="pos-btn" onclick="alternarBotao(this)">${i}</button>
-      <input type="tel" placeholder="Nº" oninput="buscarBase(this)" />
-      <input type="text" placeholder="Nome" />`;
-    categoria.appendChild(linha);
-  }
-  bloco.appendChild(categoria);
-  salvarDados();
-  aplicarDragDrop(categoria);
-}
+        <!-- Import Modal -->
+        <div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 class="text-xl font-bold mb-4">Importar Dados</h3>
+                <p class="text-gray-600 mb-4">Selecione o arquivo para importar:</p>
+                <input type="file" id="importFileInput" class="w-full mb-4" accept=".json,.csv,.xlsx">
+                <div class="flex space-x-4">
+                    <button id="confirmImport" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
+                        Importar
+                    </button>
+                    <button id="cancelImport" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-function removerBloco(botao) {
-  if (confirm("Remover este bloco?")) {
-    const bloco = botao.closest(".bloco");
-    bloco.remove();
-    salvarDados();
-  }
-}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const eventNameInput = document.getElementById('eventName');
+            const addDistanceBtn = document.getElementById('addDistance');
+            const clearAllBtn = document.getElementById('clearAll');
+            const distancesContainer = document.getElementById('distancesContainer');
+            const exportDataBtn = document.getElementById('exportData');
+            const importDataBtn = document.getElementById('importData');
+            const fileInput = document.getElementById('fileInput');
+            const exportModal = document.getElementById('exportModal');
+            const importModal = document.getElementById('importModal');
+            const closeExportModal = document.getElementById('closeExportModal');
+            const cancelImport = document.getElementById('cancelImport');
+            const confirmImport = document.getElementById('confirmImport');
+            const exportJSON = document.getElementById('exportJSON');
+            const exportCSV = document.getElementById('exportCSV');
+            const exportExcel = document.getElementById('exportExcel');
+            const importFileInput = document.getElementById('importFileInput');
 
-function removerCategoria(botao) {
-  if (confirm("Remover esta categoria?")) {
-    const categoria = botao.closest(".categoria");
-    categoria.remove();
-    salvarDados();
-  }
-}
+            // Load saved data from localStorage
+            loadData();
 
-function alternarBotao(botao) {
-  botao.classList.toggle("ativa");
-  salvarDados();
-}
+            // Event Listeners
+            addDistanceBtn.addEventListener('click', addDistanceBlock);
+            clearAllBtn.addEventListener('click', clearAllData);
+            exportDataBtn.addEventListener('click', () => exportModal.classList.remove('hidden'));
+            importDataBtn.addEventListener('click', () => importModal.classList.remove('hidden'));
+            closeExportModal.addEventListener('click', () => exportModal.classList.add('hidden'));
+            cancelImport.addEventListener('click', () => importModal.classList.add('hidden'));
+            confirmImport.addEventListener('click', importData);
+            exportJSON.addEventListener('click', exportAsJSON);
+            exportCSV.addEventListener('click', exportAsCSV);
+            exportExcel.addEventListener('click', exportAsExcel);
 
-function aplicarDragDrop(container) {
-  new Sortable(container, {
-    animation: 150,
-    handle: ".draggable",
-    disabled: !classificacaoEditavel,
-    onEnd: () => salvarDados()
-  });
-}
-
-function editarClassificacaoToggle() {
-  classificacaoEditavel = !classificacaoEditavel;
-  document.getElementById("btnEditarClassificacao").className = classificacaoEditavel ? "" : "gray";
-  const categorias = document.querySelectorAll(".categoria");
-  categorias.forEach(cat => aplicarDragDrop(cat));
-}
-
-function buscarBase(input) {
-  const numero = input.value.trim();
-  if (!numero || baseAtletas.length === 0) return;
-
-  const encontrado = baseAtletas.find(a => a.numeral === numero);
-  if (!encontrado) {
-    alert("Número não encontrado na base.");
-    return;
-  }
-
-  const nomeInput = input.parentElement.querySelector('input[type="text"]');
-  modalCampoAtual = nomeInput;
-  document.getElementById("modalTexto").textContent =
-    `Encontrado: Nº ${encontrado.numeral} — ${encontrado.nome} — ${encontrado.distancia}`;
-  document.getElementById("modal").style.display = "block";
-}
-
-function usarDadosModal() {
-  if (modalCampoAtual && modalCampoAtual.tagName === "INPUT") {
-    modalCampoAtual.value = document.getElementById("modalTexto").textContent.split("—")[1].trim();
-    salvarDados();
-  }
-  fecharModal();
-}
-
-function naoUsarDadosModal() {
-  fecharModal();
-}
-
-function fecharModal() {
-  document.getElementById("modal").style.display = "none";
-  modalCampoAtual = null;
-}
-
-function consultarBase() {
-  const termo = document.getElementById("consultaBase").value.trim().toLowerCase();
-  const div = document.getElementById("resultadoConsulta");
-  if (!termo) {
-    div.innerHTML = "";
-    return;
-  }
-
-  const encontrados = baseAtletas.filter(a =>
-    a.numeral.includes(termo) || a.nome.toLowerCase().includes(termo)
-  );
-
-  if (encontrados.length === 0) {
-    div.innerHTML = "Nada consta na base para esta consulta.";
-  } else {
-    div.innerHTML = encontrados.map(a =>
-      `Nº ${a.numeral} — ${a.nome} — ${a.distancia}`
-    ).join("<br>");
-  }
-}
-
-function salvarDados() {
-  localStorage.setItem("blocosHTML", document.getElementById("containerBlocos").innerHTML);
-}
-
-function carregarDados() {
-  const html = localStorage.getItem("blocosHTML");
-  if (html) {
-    document.getElementById("containerBlocos").innerHTML = html;
-    document.querySelectorAll(".categoria").forEach(cat => aplicarDragDrop(cat));
-  }
-}
-
-function limparTudo() {
-  if (confirm("Deseja apagar tudo?")) {
-    localStorage.clear();
-    document.getElementById("containerBlocos").innerHTML = "";
-    document.getElementById("nomeEvento").value = "";
-    document.getElementById("consultaBase").value = "";
-    document.getElementById("resultadoConsulta").innerHTML = "";
-    baseAtletas = [];
-  }
-}
-
-function exportarResultados() {
-  const linhas = [];
-  document.querySelectorAll(".categoria").forEach(categoria => {
-    const nome = categoria.querySelector("h4").textContent;
-    linhas.push(`Categoria: ${nome}`);
-    categoria.querySelectorAll(".posicao").forEach(pos => {
-      const posNum = pos.querySelector("button").textContent;
-      const num = pos.querySelector('input[type="tel"]').value;
-      const nome = pos.querySelector('input[type="text"]').value;
-      linhas.push(`${posNum} - Nº ${num} - ${nome}`);
-    });
-    linhas.push("");
-  });
-  alert(linhas.join("\n"));
-}
-
-function importarBase() {
-  const input = document.getElementById("arquivoBase");
-  const file = input.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-
-  if (file.name.endsWith(".csv")) {
-    reader.onload = e => {
-      const linhas = e.target.result.split("\n").map(l => l.trim()).filter(Boolean);
-      const colunas = linhas[0].split(",");
-      if (!colunas.includes("numeral") || !colunas.includes("nome") || !colunas.includes("distancia")) {
-        alert("CSV inválido. Deve conter as colunas: numeral, nome, distancia");
-        return;
-      }
-      baseAtletas = linhas.slice(1).map(linha => {
-        const dados = linha.split(",");
-        return {
-          numeral: dados[colunas.indexOf("numeral")].trim(),
-          nome: dados[colunas.indexOf("nome")].trim(),
-          distancia: dados[colunas.indexOf("distancia")].trim()
-        };
-      });
-      alert("Base CSV importada com sucesso!");
-    };
-    reader.readAsText(file);
-  } else if (file.name.endsWith(".xlsx")) {
-    reader.onload = e => {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-      const colunas = json[0];
-      if (!colunas.includes("numeral") || !colunas.includes("nome") || !colunas.includes("distancia")) {
-        alert("XLSX inválido. Deve conter as colunas: numeral, nome, distancia");
-        return;
-      }
-      baseAtletas = json.slice(1).map(row => ({
-        numeral: row[colunas.indexOf("numeral")]?.toString().trim() || "",
-        nome: row[colunas.indexOf("nome")]?.toString().trim() || "",
-        distancia: row[colunas.indexOf("distancia")]?.toString().trim() || ""
-      })).filter(a => a.numeral);
-      alert("Base XLSX importada com sucesso!");
-    };
-    reader.readAsArrayBuffer(file);
-  } else {
-    alert("Formato de arquivo não suportado. Use CSV ou XLSX.");
-  }
-}
-</script>
-
-
-<header>
-  <h1>Controle de Chegada</h1>
-</header>
-
-<div class="campo-evento">
-  <label for="nomeEvento">Nome do Evento:</label>
-  <input type="text" id="nomeEvento" placeholder="Ex: Corrida Anual" />
-</div>
-
-<div class="botoes">
-  <button onclick="adicionarBloco()">Adicionar Bloco</button>
-  <button onclick="limparTudo()">Limpar Tudo</button>
-  <button onclick="exportarResultados()">Exportar Resultados</button>
-  <input type="file" id="arquivoBase" accept=".csv, .xlsx" onchange="importarBase()" />
-  <button onclick="editarClassificacaoToggle()" id="btnEditarClassificacao" class="gray">Editar Classificação</button>
-</div>
-
-<div class="campo-evento">
-  <label for="consultaBase">Consultar Base (por número ou nome):</label>
-  <input type="text" id="consultaBase" oninput="consultarBase()" placeholder="Digite o número ou nome...">
-  <div id="resultadoConsulta" class="consulta-resultado"></div>
-</div>
-
-<div id="containerBlocos"></div>
-
-<!-- MODAL -->
-<div id="modal" style="display:none; position:fixed; top:30%; left:10%; right:10%; background:white; padding:20px; border:1px solid #ccc; border-radius:8px; box-shadow: 0 0 10px rgba(0,0,0,0.5); z-index:9999;">
-  <p id="modalTexto"></p>
-  <button onclick="usarDadosModal()">Usar Dados</button>
-  <button onclick="naoUsarDadosModal()">Não Usar</button>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script>
-let baseAtletas = [];
-let classificacaoEditavel = false;
-let dadosPreenchidos = {};
-let modalCampoAtual = null;
-
-document.getElementById("nomeEvento").addEventListener("input", () => {
-  localStorage.setItem("nomeEvento", document.getElementById("nomeEvento").value);
-});
-
-window.onload = () => {
-  const nomeEvento = localStorage.getItem("nomeEvento");
-  if (nomeEvento) document.getElementById("nomeEvento").value = nomeEvento;
-};
-
-// Funções principais omitidas aqui por limite de caracteres
-// Incluem: adicionarBloco, adicionarCategoria, adicionarPosicao, salvarDados,
-// carregarDados, limparTudo, exportarResultados, importarBase, editarClassificacaoToggle,
-// consultarBase, usarDadosModal, naoUsarDadosModal, e outras auxiliares
-
-</script>
+            // Functions
+            function addDistanceBlock() {
+                const distanceId = Date.now();
+                const distanceBlock = document.createElement('div');
+                distanceBlock.className = 'bg-white rounded-lg shadow-md p-4';
+                distanceBlock.dataset.distanceId = distanceId;
+                
+                distanceBlock.innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <input type="text" class="distance-name px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md" placeholder="Nome da Distância">
+                        <div class="flex space-x-2">
+                            <button class="add-category bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
+                                <i class="fas fa-plus mr-1"></i> Categoria
+                            </button>
+                            <button class="delete-distance bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
+                                <i class="fas fa-trash-alt mr-1"></i> Bloco
+                            </button>
+                        </div>
+                    </div>
+                    <div class="categories-container space-y-4"></div>
+                `;
+                
+                distancesContainer.appendChild(distanceBlock);
+                
+                // Add event listeners for the new buttons
+                distanceBlock.querySelector('.add-category').addEventListener('click', () => addCategory(distanceId));
+                distanceBlock.querySelector('.delete-distance').addEventListener('click', () => {
+                    if (confirm('Tem certeza que deseja deletar este bloco de distância?')) {
+                        distanceBlock.remove();
+                        saveData();
+                    }
+                });
+                
+                // Save when name changes
+                distanceBlock.querySelector('.distance-name').addEventListener('input', saveData);
+                
+                saveData();
+            }
+            
+            function addCategory(distanceId) {
+                const distanceBlock = document.querySelector(`[data-distance-id="${distanceId}"]`);
+                const categoriesContainer = distanceBlock.querySelector('.categories-container');
+                const categoryId = Date.now();
+                
+                const categoryBlock = document.createElement('div');
+                categoryBlock.className = 'bg-gray-50 rounded-lg shadow-sm p-4';
+                categoryBlock.dataset.categoryId = categoryId;
+                
+                categoryBlock.innerHTML = `
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                        <input type="text" class="category-name px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md" placeholder="Nome da Categoria">
+                        <div class="flex space-x-2">
+                            <input type="number" min="1" class="winners-count px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-20" placeholder="Qtd" value="3">
+                            <button class="add-winners bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
+                                <i class="fas fa-user-plus mr-1"></i> Premiados
+                            </button>
+                            <button class="delete-category bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
+                                <i class="fas fa-trash-alt mr-1"></i> Categoria
+                            </button>
+                        </div>
+                    </div>
+                    <div class="winners-container space-y-2"></div>
+                `;
+                
+                categoriesContainer.appendChild(categoryBlock);
+                
+                // Add event listeners
+                categoryBlock.querySelector('.add-winners').addEventListener('click', () => {
+                    const count = parseInt(categoryBlock.querySelector('.winners-count').value) || 1;
+                    addWinners(categoryId, count);
+                });
+                
+                categoryBlock.querySelector('.delete-category').addEventListener('click', () => {
+                    if (confirm('Tem certeza que deseja deletar esta categoria?')) {
+                        categoryBlock.remove();
+                        saveData();
+                    }
+                });
+                
+                // Save when inputs change
+                categoryBlock.querySelector('.category-name').addEventListener('input', saveData);
+                categoryBlock.querySelector('.winners-count').addEventListener('input', saveData);
+                
+                saveData();
+            }
+            
+            function addWinners(categoryId, count) {
+                const categoryBlock = document.querySelector(`[data-category-id="${categoryId}"]`);
+                const winnersContainer = categoryBlock.querySelector('.winners-container');
+                
+                // Clear existing winners if needed
+                // winnersContainer.innerHTML = '';
+                
+                for (let i = 0; i < count; i++) {
+                    const winnerId = Date.now() + i;
+                    const winnerItem = document.createElement('div');
+                    winnerItem.className = 'winner-item bg-white rounded-md p-3 border border-gray-200 flex items-center space-x-2 mobile-flex-col mobile-space-x-0 mobile-space-y-2';
+                    winnerItem.dataset.winnerId = winnerId;
+                    
+                    // Create draggable number circle
+                    const numberCircle = document.createElement('div');
+                    numberCircle.className = 'number-circle w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center cursor-move draggable';
+                    numberCircle.textContent = (winnersContainer.children.length + 1).toString();
+                    numberCircle.draggable = true;
+                    
+                    // Add drag events
+                    numberCircle.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', winnerId);
+                        e.target.classList.add('opacity-50');
+                    });
+                    
+                    numberCircle.addEventListener('dragend', (e) => {
+                        e.target.classList.remove('opacity-50');
+                    });
+                    
+                    numberCircle.addEventListener('click', () => {
+                        numberCircle.classList.toggle('bg-red-500');
+                        numberCircle.classList.toggle('bg-green-500');
+                        saveData();
+                    });
+                    
+                    // Create input fields
+                    const numberInput = document.createElement('input');
+                    numberInput.type = 'text';
+                    numberInput.placeholder = 'Número';
+                    numberInput.className = 'winner-number px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 mobile-w-full';
+                    
+                    const nameInput = document.createElement('input');
+                    nameInput.type = 'text';
+                    nameInput.placeholder = 'Nome';
+                    nameInput.className = 'winner-name px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 flex-grow mobile-w-full';
+                    
+                    // Create delete button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-winner bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded-lg text-sm flex items-center mobile-w-full';
+                    deleteBtn.innerHTML = '<i class="fas fa-times mr-1"></i>';
+                    
+                    deleteBtn.addEventListener('click', () => {
+                        winnerItem.remove();
+                        updateWinnerNumbers(winnersContainer);
+                        saveData();
+                    });
+                    
+                    // Add drag and drop to the whole item
+                    winnerItem.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                    });
+                    
+                    winnerItem.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        const draggedId = e.dataTransfer.getData('text/plain');
+                        const draggedItem = document.querySelector(`[data-winner-id="${draggedId}"]`);
+                        
+                        if (draggedItem && draggedItem !== winnerItem) {
+                            const winnerItems = Array.from(winnersContainer.children);
+                            const draggedIndex = winnerItems.indexOf(draggedItem);
+                            const targetIndex = winnerItems.indexOf(winnerItem);
+                            
+                            if (draggedIndex < targetIndex) {
+                                winnersContainer.insertBefore(draggedItem, winnerItem.nextSibling);
+                            } else {
+                                winnersContainer.insertBefore(draggedItem, winnerItem);
+                            }
+                            
+                            updateWinnerNumbers(winnersContainer);
+                            saveData();
+                        }
+                    });
+                    
+                    // Input change events
+                    numberInput.addEventListener('input', saveData);
+                    nameInput.addEventListener('input', saveData);
+                    
+                    // Assemble the item
+                    winnerItem.appendChild(numberCircle);
+                    winnerItem.appendChild(numberInput);
+                    winnerItem.appendChild(nameInput);
+                    winnerItem.appendChild(deleteBtn);
+                    
+                    winnersContainer.appendChild(winnerItem);
+                }
+                
+                updateWinnerNumbers(winnersContainer);
+                saveData();
+            }
+            
+            function updateWinnerNumbers(container) {
+                const winners = container.querySelectorAll('.winner-item');
+                winners.forEach((winner, index) => {
+                    const numberCircle = winner.querySelector('.number-circle');
+                    numberCircle.textContent = (index + 1).toString();
+                });
+            }
+            
+            function clearAllData() {
+                if (confirm('Tem certeza que deseja limpar TODOS os dados? Esta ação não pode ser desfeita.')) {
+                    distancesContainer.innerHTML = '';
+                    localStorage.removeItem('raceArrivalData');
+                    eventNameInput.value = '';
+                }
+            }
+            
+            function saveData() {
+                const data = {
+                    eventName: eventNameInput.value,
+                    distances: []
+                };
+                
+                document.querySelectorAll('[data-distance-id]').forEach(distanceBlock => {
+                    const distance = {
+                        id: distanceBlock.dataset.distanceId,
+                        name: distanceBlock.querySelector('.distance-name').value,
+                        categories: []
+                    };
+                    
+                    distanceBlock.querySelectorAll('[data-category-id]').forEach(categoryBlock => {
+                        const category = {
+                            id: categoryBlock.dataset.categoryId,
+                            name: categoryBlock.querySelector('.category-name').value,
+                            winnersCount: categoryBlock.querySelector('.winners-count').value,
+                            winners: []
+                        };
+                        
+                        categoryBlock.querySelectorAll('.winner-item').forEach(winnerItem => {
+                            const winner = {
+                                id: winnerItem.dataset.winnerId,
+                                number: winnerItem.querySelector('.winner-number').value,
+                                name: winnerItem.querySelector('.winner-name').value,
+                                arrived: winnerItem.querySelector('.number-circle').classList.contains('bg-green-500')
+                            };
+                            category.winners.push(winner);
+                        });
+                        
+                        distance.categories.push(category);
+                    });
+                    
+                    data.distances.push(distance);
+                });
+                
+                localStorage.setItem('raceArrivalData', JSON.stringify(data));
+            }
+            
+            function loadData() {
+                const savedData = localStorage.getItem('raceArrivalData');
+                if (!savedData) return;
+                
+                const data = JSON.parse(savedData);
+                
+                // Clear existing data
+                distancesContainer.innerHTML = '';
+                eventNameInput.value = data.eventName || '';
+                
+                // Rebuild the UI from saved data
+                data.distances.forEach(distance => {
+                    const distanceBlock = document.createElement('div');
+                    distanceBlock.className = 'bg-white rounded-lg shadow-md p-4 mb-6';
+                    distanceBlock.dataset.distanceId = distance.id;
+                    
+                    distanceBlock.innerHTML = `
+                        <div class="flex justify-between items-center mb-4">
+                            <input type="text" class="distance-name px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md" value="${distance.name || ''}" placeholder="Nome da Distância">
+                            <div class="flex space-x-2">
+                                <button class="add-category bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
+                                    <i class="fas fa-plus mr-1"></i> Categoria
+                                </button>
+                                <button class="delete-distance bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
+                                    <i class="fas fa-trash-alt mr-1"></i> Bloco
+                                </button>
+                            </div>
+                        </div>
+                        <div class="categories-container space-y-4"></div>
+                    `;
+                    
+                    distancesContainer.appendChild(distanceBlock);
+                    
+                    // Add event listeners for the new buttons
+                    distanceBlock.querySelector('.add-category').addEventListener('click', () => addCategory(distance.id));
+                    distanceBlock.querySelector('.delete-distance').addEventListener('click', () => {
+                        if (confirm('Tem certeza que deseja deletar este bloco de distância?')) {
+                            distanceBlock.remove();
+                            saveData();
+                        }
+                    });
+                    
+                    // Load categories
+                    const categoriesContainer = distanceBlock.querySelector('.categories-container');
+                    
+                    distance.categories.forEach(category => {
+                        const categoryBlock = document.createElement('div');
+                        categoryBlock.className = 'bg-gray-50 rounded-lg shadow-sm p-4';
+                        categoryBlock.dataset.categoryId = category.id;
+                        
+                        categoryBlock.innerHTML = `
+                            <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                                <input type="text" class="category-name px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md" value="${category.name || ''}" placeholder="Nome da Categoria">
+                                <div class="flex space-x-2">
+                                    <input type="number" min="1" class="winners-count px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-20" value="${category.winnersCount || 3}" placeholder="Qtd">
+                                    <button class="add-winners bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
+                                        <i class="fas fa-user-plus mr-1"></i> Premiados
+                                    </button>
+                                    <button class="delete-category bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
+                                        <i class="fas fa-trash-alt mr-1"></i> Categoria
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="winners-container space-y-2"></div>
+                        `;
+                        
+                        categoriesContainer.appendChild(categoryBlock);
+                        
+                        // Add event listeners
+                        categoryBlock.querySelector('.add-winners').addEventListener('click', () => {
+                            const count = parseInt(categoryBlock.querySelector('.winners-count').value) || 1;
+                            addWinners(category.id, count);
+                        });
+                        
+                        categoryBlock.querySelector('.delete-category').addEventListener('click', () => {
+                            if (confirm('Tem certeza que deseja deletar esta categoria?')) {
+                                categoryBlock.remove();
+                                saveData();
+                            }
+                        });
+                        
+                        // Load winners
+                        const winnersContainer = categoryBlock.querySelector('.winners-container');
+                        
+                        category.winners.forEach(winner => {
+                            const winnerItem = document.createElement('div');
+                            winnerItem.className = 'winner-item bg-white rounded-md p-3 border border-gray-200 flex items-center space-x-2 mobile-flex-col mobile-space-x-0 mobile-space-y-2';
+                            winnerItem.dataset.winnerId = winner.id;
+                            
+                            // Create draggable number circle
+                            const numberCircle = document.createElement('div');
+                            numberCircle.className = `number-circle w-8 h-8 rounded-full ${winner.arrived ? 'bg-green-500' : 'bg-red-500'} text-white flex items-center justify-center cursor-move draggable`;
+                            numberCircle.textContent = (winnersContainer.children.length + 1).toString();
+                            numberCircle.draggable = true;
+                            
+                            // Add drag events
+                            numberCircle.addEventListener('dragstart', (e) => {
+                                e.dataTransfer.setData('text/plain', winner.id);
+                                e.target.classList.add('opacity-50');
+                            });
+                            
+                            numberCircle.addEventListener('dragend', (e) => {
+                                e.target.classList.remove('opacity-50');
+                            });
+                            
+                            numberCircle.addEventListener('click', () => {
+                                numberCircle.classList.toggle('bg-red-500');
+                                numberCircle.classList.toggle('bg-green-500');
+                                saveData();
+                            });
+                            
+                            // Create input fields
+                            const numberInput = document.createElement('input');
+                            numberInput.type = 'text';
+                            numberInput.placeholder = 'Número';
+                            numberInput.className = 'winner-number px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 mobile-w-full';
+                            numberInput.value = winner.number || '';
+                            
+                            const nameInput = document.createElement('input');
+                            nameInput.type = 'text';
+                            nameInput.placeholder = 'Nome';
+                            nameInput.className = 'winner-name px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 flex-grow mobile-w-full';
+                            nameInput.value = winner.name || '';
+                            
+                            // Create delete button
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.className = 'delete-winner bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded-lg text-sm flex items-center mobile-w-full';
+                            deleteBtn.innerHTML = '<i class="fas fa-times mr-1"></i>';
+                            
+                            deleteBtn.addEventListener('click', () => {
+                                winnerItem.remove();
+                                updateWinnerNumbers(winnersContainer);
+                                saveData();
+                            });
+                            
+                            // Add drag and drop to the whole item
+                            winnerItem.addEventListener('dragover', (e) => {
+                                e.preventDefault();
+                            });
+                            
+                            winnerItem.addEventListener('drop', (e) => {
+                                e.preventDefault();
+                                const draggedId = e.dataTransfer.getData('text/plain');
+                                const draggedItem = document.querySelector(`[data-winner-id="${draggedId}"]`);
+                                
+                                if (draggedItem && draggedItem !== winnerItem) {
+                                    const winnerItems = Array.from(winnersContainer.children);
+                                    const draggedIndex = winnerItems.indexOf(draggedItem);
+                                    const targetIndex = winnerItems.indexOf(winnerItem);
+                                    
+                                    if (draggedIndex < targetIndex) {
+                                        winnersContainer.insertBefore(draggedItem, winnerItem.nextSibling);
+                                    } else {
+                                        winnersContainer.insertBefore(draggedItem, winnerItem);
+                                    }
+                                    
+                                    updateWinnerNumbers(winnersContainer);
+                                    saveData();
+                                }
+                            });
+                            
+                            // Input change events
+                            numberInput.addEventListener('input', saveData);
+                            nameInput.addEventListener('input', saveData);
+                            
+                            // Assemble the item
+                            winnerItem.appendChild(numberCircle);
+                            winnerItem.appendChild(numberInput);
+                            winnerItem.appendChild(nameInput);
+                            winnerItem.appendChild(deleteBtn);
+                            
+                            winnersContainer.appendChild(winnerItem);
+                        });
+                        
+                        updateWinnerNumbers(winnersContainer);
+                    });
+                    
+                    // Save when inputs change
+                    distanceBlock.querySelector('.distance-name').addEventListener('input', saveData);
+                });
+            }
+            
+            function exportAsJSON() {
+                const data = JSON.parse(localStorage.getItem('raceArrivalData') || '{}');
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `controle-chegada-${data.eventName || 'evento'}-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                exportModal.classList.add('hidden');
+            }
+            
+            function exportAsCSV() {
+                const data = JSON.parse(localStorage.getItem('raceArrivalData') || '{}');
+                let csvContent = "Distância,Categoria,Posição,Número,Nome,Chegou\n";
+                
+                data.distances.forEach(distance => {
+                    distance.categories.forEach(category => {
+                        category.winners.forEach((winner, index) => {
+                            csvContent += `"${distance.name || ''}","${category.name || ''}",${index + 1},"${winner.number || ''}","${winner.name || ''}",${winner.arrived ? 'Sim' : 'Não'}\n`;
+                        });
+                    });
+                });
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `controle-chegada-${data.eventName || 'evento'}-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                exportModal.classList.add('hidden');
+            }
+            
+            function exportAsExcel() {
+                const data = JSON.parse(localStorage.getItem('raceArrivalData') || '{}');
+                const wb = XLSX.utils.book_new();
+                
+                // Prepare data for Excel
+                const excelData = [['Distância', 'Categoria', 'Posição', 'Número', 'Nome', 'Chegou']];
+                
+                data.distances.forEach(distance => {
+                    distance.categories.forEach(category => {
+                        category.winners.forEach((winner, index) => {
+                            excelData.push([
+                                distance.name || '',
+                                category.name || '',
+                                index + 1,
+                                winner.number || '',
+                                winner.name || '',
+                                winner.arrived ? 'Sim' : 'Não'
+                            ]);
+                        });
+                    });
+                });
+                
+                const ws = XLSX.utils.aoa_to_sheet(excelData);
+                XLSX.utils.book_append_sheet(wb, ws, 'Controle de Chegada');
+                
+                XLSX.writeFile(wb, `controle-chegada-${data.eventName || 'evento'}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+                
+                exportModal.classList.add('hidden');
+            }
+            
+            function importData() {
+                const file = importFileInput.files[0];
+                if (!file) {
+                    alert('Por favor, selecione um arquivo para importar.');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        let data;
+                        
+                        if (file.name.endsWith('.json')) {
+                            data = JSON.parse(e.target.result);
+                        } else if (file.name.endsWith('.csv')) {
+                            // Simple CSV parsing (for demo purposes)
+                            const csv = e.target.result;
+                            const lines = csv.split('\n');
+                            const headers = lines[0].split(',');
+                            data = { distances: [] };
+                            
+                            // This is a simplified CSV import - would need more robust parsing for production
+                            // Here we're just demonstrating the concept
+                            alert('Importação de CSV é limitada nesta demonstração. Use JSON para melhor compatibilidade.');
+                            return;
+                        } else if (file.name.endsWith('.xlsx')) {
+                            // Simple Excel parsing (for demo purposes)
+                            alert('Importação de Excel é limitada nesta demonstração. Use JSON para melhor compatibilidade.');
+                            return;
+                        } else {
+                            alert('Formato de arquivo não suportado. Use JSON, CSV ou XLSX.');
+                            return;
+                        }
+                        
+                        if (confirm('Importar estes dados? Os dados atuais serão substituídos.')) {
+                            localStorage.setItem('raceArrivalData', JSON.stringify(data));
+                            loadData();
+                            importModal.classList.add('hidden');
+                            alert('Dados importados com sucesso!');
+                        }
+                    } catch (error) {
+                        console.error('Erro ao importar dados:', error);
+                        alert('Erro ao importar dados. Verifique o formato do arquivo.');
+                    }
+                };
+                
+                if (file.name.endsWith('.json')) {
+                    reader.readAsText(file);
+                } else if (file.name.endsWith('.csv')) {
+                    reader.readAsText(file);
+                } else if (file.name.endsWith('.xlsx')) {
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    alert('Formato de arquivo não suportado. Use JSON, CSV ou XLSX.');
+                }
+            }
+            
+            // Initialize Sortable for winners containers
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('add-winners') || e.target.closest('.add-winners')) {
+                    const categoryBlock = e.target.closest('[data-category-id]');
+                    const winnersContainer = categoryBlock.querySelector('.winners-container');
+                    
+                    new Sortable(winnersContainer, {
+                        animation: 150,
+                        handle: '.number-circle',
+                        draggable: '.winner-item',
+                        ghostClass: 'sortable-ghost',
+                        chosenClass: 'sortable-chosen',
+                        onEnd: function() {
+                            updateWinnerNumbers(winnersContainer);
+                            saveData();
+                        }
+                    });
+                }
+            });
+            
+            // Auto-save when event name changes
+            eventNameInput.addEventListener('input', saveData);
+        });
+    </script>
 </body>
 </html>
