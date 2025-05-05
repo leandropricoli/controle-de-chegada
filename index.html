@@ -3,373 +3,1037 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Controle de Chegada</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        .draggable {
-            touch-action: none;
-            user-select: none;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            max-width: 100vw;
+            overflow-x: hidden;
+            touch-action: manipulation;
+            background-color: #f8fafc;
         }
-        .sortable-chosen {
-            opacity: 0.5;
+        
+        .number-bubble {
+            transition: all 0.2s ease;
+            width: 2.5rem;
+            height: 2.5rem;
+            flex-shrink: 0;
         }
-        .sortable-ghost {
-            opacity: 0;
+        
+        .locked {
+            opacity: 0.7;
         }
+        
+        .locked .delete-distance-btn,
+        .locked .delete-category-btn,
+        .locked .add-category-btn,
+        .locked input {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        
+        .locked .number-bubble {
+            pointer-events: auto !important;
+            opacity: 1 !important;
+        }
+        
+        .scrollable-container {
+            scrollbar-width: none;
+        }
+        
+        .scrollable-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        input[type="text"], input[type="number"] {
+            font-size: 0.9rem;
+        }
+        
+        .winner-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+        }
+        
+        .number-input {
+            width: 4.5rem;
+            flex-shrink: 0;
+        }
+        
+        .name-input {
+            flex-grow: 1;
+            min-width: 0;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
         @media (max-width: 640px) {
-            .mobile-flex-col {
-                flex-direction: column;
+            .responsive-text {
+                font-size: 0.85rem;
             }
-            .mobile-w-full {
-                width: 100% !important;
+            
+            .input-field {
+                padding: 0.35rem 0.5rem;
+                font-size: 0.85rem;
+            }
+            
+            .number-bubble {
+                width: 2.2rem;
+                height: 2.2rem;
+                font-size: 0.9rem;
+            }
+            
+            .number-input {
+                width: 3.8rem;
+            }
+            
+            .modal-container {
+                width: 95%;
+                margin: 0 auto;
             }
         }
     </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        danger: '#ef4444',
+                        warning: '#f59e0b',
+                        dark: '#1e293b',
+                        light: '#f8fafc'
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-gray-100 min-h-screen font-sans">
+<body class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 py-6 max-w-3xl">
         <!-- Header -->
-        <header class="bg-blue-600 text-white rounded-lg shadow-md p-4 mb-6">
-            <h1 class="text-2xl font-bold text-center">CONTROLE DE CHEGADA</h1>
-        </header>
-
-        <!-- Event Name -->
-        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-            <label for="eventName" class="block text-gray-700 font-medium mb-2">NOME DO EVENTO</label>
-            <input type="text" id="eventName" placeholder="Digite o nome da corrida" 
-                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-
-        <!-- Controls -->
-        <div class="bg-white rounded-lg shadow-md p-4 mb-6 flex flex-wrap gap-4">
-            <button id="addDistance" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center">
-                <i class="fas fa-plus mr-2"></i> Adicionar Distância
-            </button>
-            <button id="clearAll" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium flex items-center">
-                <i class="fas fa-trash-alt mr-2"></i> Limpar Tudo
-            </button>
-            <button id="exportData" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center">
-                <i class="fas fa-file-export mr-2"></i> Exportar Dados
-            </button>
-            <button id="importData" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center">
-                <i class="fas fa-file-import mr-2"></i> Importar Dados
-            </button>
-            <input type="file" id="fileInput" class="hidden" accept=".json,.csv,.xlsx">
-        </div>
-
-        <!-- Distances Container -->
-        <div id="distancesContainer" class="space-y-6"></div>
-
-        <!-- Export Modal -->
-        <div id="exportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 class="text-xl font-bold mb-4">Exportar Dados</h3>
-                <div class="space-y-4">
-                    <button id="exportJSON" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
-                        Exportar como JSON
-                    </button>
-                    <button id="exportCSV" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium">
-                        Exportar como CSV
-                    </button>
-                    <button id="exportExcel" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium">
-                        Exportar como Excel
-                    </button>
-                </div>
-                <div class="mt-6">
-                    <button id="closeExportModal" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
-                        Fechar
-                    </button>
-                </div>
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Controle de Chegada</h1>
+                <p class="text-sm text-gray-500">Registro de resultados de corrida</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="helpBtn" class="p-2 rounded-full bg-white shadow text-gray-600 hover:bg-gray-100 transition">
+                    <i class="fas fa-question-circle"></i>
+                </button>
+                <button id="lockBtn" class="p-2 rounded-full bg-white shadow text-gray-600 hover:bg-gray-100 transition">
+                    <i class="fas fa-lock"></i>
+                </button>
             </div>
         </div>
-
-        <!-- Import Modal -->
-        <div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 class="text-xl font-bold mb-4">Importar Dados</h3>
-                <p class="text-gray-600 mb-4">Selecione o arquivo para importar:</p>
-                <input type="file" id="importFileInput" class="w-full mb-4" accept=".json,.csv,.xlsx">
-                <div class="flex space-x-4">
-                    <button id="confirmImport" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
-                        Importar
-                    </button>
-                    <button id="cancelImport" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
-                        Cancelar
-                    </button>
+        
+        <!-- Event Name -->
+        <div class="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-100">
+            <label for="eventName" class="block text-sm font-medium text-gray-700 mb-2">Nome do Evento</label>
+            <input type="text" id="eventName" placeholder="Ex: Corrida da Cidade 2023" 
+                   class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition">
+        </div>
+        
+        <!-- Controls -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <button id="addDistanceBtn" class="col-span-2 md:col-span-1 bg-primary hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md">
+                <i class="fas fa-plus"></i> Adicionar Distância
+            </button>
+            <button id="clearAllBtn" class="col-span-2 md:col-span-1 bg-danger hover:bg-red-700 text-white py-2 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md">
+                <i class="fas fa-trash-alt"></i> Limpar Tudo
+            </button>
+            <button id="importBtn" class="bg-secondary hover:bg-green-700 text-white py-2 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md">
+                <i class="fas fa-file-import"></i> Importar
+            </button>
+            <button id="exportBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md">
+                <i class="fas fa-file-export"></i> Exportar
+            </button>
+        </div>
+        
+        <input type="file" id="importFile" accept=".csv,.xlsx" class="hidden">
+        
+        <!-- Search -->
+        <div class="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-100">
+            <div class="flex items-center gap-2 mb-2">
+                <label for="searchInput" class="block text-sm font-medium text-gray-700">Buscar</label>
+                <span class="text-xs text-gray-400">(Número ou Nome)</span>
+            </div>
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Digite para buscar..." 
+                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition pr-10">
+                <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+            </div>
+            <div id="importResults" class="mt-3 hidden max-h-60 overflow-y-auto scrollable-container border-t pt-3 rounded-lg bg-gray-50"></div>
+        </div>
+        
+        <!-- Distances Container -->
+        <div id="distancesContainer" class="space-y-4"></div>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-12 bg-white rounded-xl shadow-sm border border-dashed border-gray-200">
+            <div class="mx-auto w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-flag-checkered text-2xl text-primary"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-700 mb-1">Nenhuma distância adicionada</h3>
+            <p class="text-gray-500 mb-6">Comece adicionando uma distância para registrar os resultados</p>
+            <button id="addFirstDistanceBtn" class="bg-primary hover:bg-blue-700 text-white py-2 px-6 rounded-lg transition inline-flex items-center gap-2 shadow-md">
+                <i class="fas fa-plus"></i> Adicionar Distância
+            </button>
+        </div>
+    </div>
+    
+    <!-- Add Distance Modal -->
+    <div id="distanceModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md modal-container slide-in">
+            <div class="p-5 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900">Adicionar Distância</h3>
+            </div>
+            <div class="p-5">
+                <label for="distanceName" class="block text-sm font-medium text-gray-700 mb-2">Nome da Distância</label>
+                <input type="text" id="distanceName" placeholder="Ex: 5km, 10km, Meia Maratona" 
+                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition mb-5">
+                <div class="flex justify-end gap-3">
+                    <button id="cancelDistanceBtn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
+                    <button id="saveDistanceBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition shadow-md">Salvar Distância</button>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Add Category Modal -->
+    <div id="categoryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md modal-container slide-in">
+            <div class="p-5 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900">Adicionar Categoria</h3>
+            </div>
+            <div class="p-5">
+                <label for="categoryName" class="block text-sm font-medium text-gray-700 mb-2">Nome da Categoria</label>
+                <input type="text" id="categoryName" placeholder="Ex: Masculino 18-30, Feminino 30+" 
+                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition mb-4">
+                
+                <label for="winnersCount" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Premiados</label>
+                <input type="number" id="winnersCount" min="1" max="20" value="3" 
+                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition mb-5">
+                
+                <div class="flex justify-end gap-3">
+                    <button id="cancelCategoryBtn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
+                    <button id="saveCategoryBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition shadow-md">Salvar Categoria</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Help Modal -->
+    <div id="helpModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md modal-container slide-in">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900">Ajuda</h3>
+                <button id="closeHelpBtn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-5 max-h-[70vh] overflow-y-auto">
+                <div class="mb-6">
+                    <h4 class="font-medium text-gray-800 mb-2">Como usar:</h4>
+                    <ol class="list-decimal list-inside space-y-2 text-gray-600 text-sm">
+                        <li>Adicione o nome do evento</li>
+                        <li>Crie distâncias (ex: 5km, 10km)</li>
+                        <li>Para cada distância, adicione categorias (ex: Masculino 18-30)</li>
+                        <li>Preencha os números e nomes dos atletas</li>
+                        <li>Clique nas bolinhas para marcar os premiados</li>
+                        <li>Exporte os resultados quando terminar</li>
+                    </ol>
+                </div>
+                
+                <div class="mb-6">
+                    <h4 class="font-medium text-gray-800 mb-2">Dicas:</h4>
+                    <ul class="list-disc list-inside space-y-2 text-gray-600 text-sm">
+                        <li>Você pode importar dados de planilhas (CSV ou Excel)</li>
+                        <li>Use o botão de cadeado para bloquear/desbloquear edições</li>
+                        <li>Os dados são salvos automaticamente no seu navegador</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <h4 class="font-medium text-blue-800 mb-1 flex items-center gap-2">
+                        <i class="fas fa-info-circle"></i> Informação
+                    </h4>
+                    <p class="text-blue-700 text-sm">Este aplicativo funciona offline após carregado. Você pode instalá-lo como um app no seu celular.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script>
+        // Manifest for PWA
+        const manifest = {
+            "name": "Controle de Chegada",
+            "short_name": "Chegada",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#3b82f6",
+            "description": "Aplicativo para controle de chegada em corridas",
+            "icons": [
+                {
+                    "src": "icon.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                },
+                {
+                    "src": "icon.png",
+                    "sizes": "512x512",
+                    "type": "image/png"
+                }
+            ],
+            "orientation": "portrait"
+        };
+        
+        // Create manifest file dynamically
+        const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        document.querySelector('link[rel="manifest"]').href = manifestURL;
+        
         document.addEventListener('DOMContentLoaded', function() {
             // DOM Elements
             const eventNameInput = document.getElementById('eventName');
-            const addDistanceBtn = document.getElementById('addDistance');
-            const clearAllBtn = document.getElementById('clearAll');
+            const addDistanceBtn = document.getElementById('addDistanceBtn');
+            const addFirstDistanceBtn = document.getElementById('addFirstDistanceBtn');
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            const lockBtn = document.getElementById('lockBtn');
+            const helpBtn = document.getElementById('helpBtn');
+            const closeHelpBtn = document.getElementById('closeHelpBtn');
             const distancesContainer = document.getElementById('distancesContainer');
-            const exportDataBtn = document.getElementById('exportData');
-            const importDataBtn = document.getElementById('importData');
-            const fileInput = document.getElementById('fileInput');
-            const exportModal = document.getElementById('exportModal');
-            const importModal = document.getElementById('importModal');
-            const closeExportModal = document.getElementById('closeExportModal');
-            const cancelImport = document.getElementById('cancelImport');
-            const confirmImport = document.getElementById('confirmImport');
-            const exportJSON = document.getElementById('exportJSON');
-            const exportCSV = document.getElementById('exportCSV');
-            const exportExcel = document.getElementById('exportExcel');
-            const importFileInput = document.getElementById('importFileInput');
-
-            // Load saved data from localStorage
-            loadData();
-
+            const emptyState = document.getElementById('emptyState');
+            const distanceModal = document.getElementById('distanceModal');
+            const categoryModal = document.getElementById('categoryModal');
+            const helpModal = document.getElementById('helpModal');
+            const searchInput = document.getElementById('searchInput');
+            const importBtn = document.getElementById('importBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const importFile = document.getElementById('importFile');
+            const importResults = document.getElementById('importResults');
+            
+            // State
+            let isLocked = false;
+            let currentDistanceId = null;
+            let importedData = [];
+            
+            // Initialize
+            checkEmptyState();
+            loadFromLocalStorage();
+            
             // Event Listeners
-            addDistanceBtn.addEventListener('click', addDistanceBlock);
-            clearAllBtn.addEventListener('click', clearAllData);
-            exportDataBtn.addEventListener('click', () => exportModal.classList.remove('hidden'));
-            importDataBtn.addEventListener('click', () => importModal.classList.remove('hidden'));
-            closeExportModal.addEventListener('click', () => exportModal.classList.add('hidden'));
-            cancelImport.addEventListener('click', () => importModal.classList.add('hidden'));
-            confirmImport.addEventListener('click', importData);
-            exportJSON.addEventListener('click', exportAsJSON);
-            exportCSV.addEventListener('click', exportAsCSV);
-            exportExcel.addEventListener('click', exportAsExcel);
-
+            addDistanceBtn.addEventListener('click', showDistanceModal);
+            addFirstDistanceBtn.addEventListener('click', showDistanceModal);
+            clearAllBtn.addEventListener('click', clearAll);
+            lockBtn.addEventListener('click', toggleLock);
+            helpBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
+            closeHelpBtn.addEventListener('click', () => helpModal.classList.add('hidden'));
+            importBtn.addEventListener('click', () => importFile.click());
+            exportBtn.addEventListener('click', exportData);
+            importFile.addEventListener('change', handleFileImport);
+            searchInput.addEventListener('input', handleSearch);
+            
+            // Save data when leaving the page
+            window.addEventListener('beforeunload', saveToLocalStorage);
+            
+            // Distance Modal
+            document.getElementById('cancelDistanceBtn').addEventListener('click', hideDistanceModal);
+            document.getElementById('saveDistanceBtn').addEventListener('click', saveDistance);
+            
+            // Category Modal
+            document.getElementById('cancelCategoryBtn').addEventListener('click', hideCategoryModal);
+            document.getElementById('saveCategoryBtn').addEventListener('click', saveCategory);
+            
             // Functions
-            function addDistanceBlock() {
-                const distanceId = Date.now();
+            function showDistanceModal() {
+                document.getElementById('distanceName').value = '';
+                distanceModal.classList.remove('hidden');
+                document.getElementById('distanceName').focus();
+            }
+            
+            function hideDistanceModal() {
+                distanceModal.classList.add('hidden');
+            }
+            
+            function showCategoryModal(distanceId) {
+                currentDistanceId = distanceId;
+                document.getElementById('categoryName').value = '';
+                document.getElementById('winnersCount').value = 3;
+                categoryModal.classList.remove('hidden');
+                document.getElementById('categoryName').focus();
+            }
+            
+            function hideCategoryModal() {
+                categoryModal.classList.add('hidden');
+            }
+            
+            function saveDistance() {
+                const name = document.getElementById('distanceName').value.trim();
+                if (name) {
+                    createDistanceBlock(name);
+                    hideDistanceModal();
+                    checkEmptyState();
+                    saveToLocalStorage();
+                    
+                    // Show success feedback
+                    showToast('Distância adicionada com sucesso!', 'success');
+                } else {
+                    showToast('Por favor, insira um nome para a distância', 'error');
+                }
+            }
+            
+            function saveCategory() {
+                const name = document.getElementById('categoryName').value.trim();
+                const winnersCount = parseInt(document.getElementById('winnersCount').value);
+                
+                if (name && winnersCount > 0) {
+                    createCategoryBlock(currentDistanceId, name, winnersCount);
+                    hideCategoryModal();
+                    saveToLocalStorage();
+                    
+                    // Show success feedback
+                    showToast('Categoria adicionada com sucesso!', 'success');
+                } else {
+                    showToast('Por favor, preencha todos os campos corretamente', 'error');
+                }
+            }
+            
+            function createDistanceBlock(name) {
+                const distanceId = 'distance-' + Date.now();
+                
                 const distanceBlock = document.createElement('div');
-                distanceBlock.className = 'bg-white rounded-lg shadow-md p-4';
-                distanceBlock.dataset.distanceId = distanceId;
+                distanceBlock.id = distanceId;
+                distanceBlock.className = 'bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden fade-in';
                 
                 distanceBlock.innerHTML = `
-                    <div class="flex justify-between items-center mb-4">
-                        <input type="text" class="distance-name px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md" placeholder="Nome da Distância">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                        <div>
+                            <h2 class="font-semibold text-gray-800 responsive-text">${name}</h2>
+                            <p class="text-xs text-gray-500 mt-1">Distância</p>
+                        </div>
                         <div class="flex space-x-2">
-                            <button class="add-category bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
-                                <i class="fas fa-plus mr-1"></i> Categoria
+                            <button class="add-category-btn p-2 text-primary hover:bg-blue-50 rounded-lg transition" data-distance="${distanceId}" title="Adicionar categoria">
+                                <i class="fas fa-plus-circle"></i>
                             </button>
-                            <button class="delete-distance bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
-                                <i class="fas fa-trash-alt mr-1"></i> Bloco
+                            <button class="delete-distance-btn p-2 text-danger hover:bg-red-50 rounded-lg transition" data-distance="${distanceId}" title="Remover distância">
+                                <i class="fas fa-trash-alt"></i>
                             </button>
                         </div>
                     </div>
-                    <div class="categories-container space-y-4"></div>
+                    <div class="categories-container p-3 space-y-3"></div>
                 `;
                 
                 distancesContainer.appendChild(distanceBlock);
                 
-                // Add event listeners for the new buttons
-                distanceBlock.querySelector('.add-category').addEventListener('click', () => addCategory(distanceId));
-                distanceBlock.querySelector('.delete-distance').addEventListener('click', () => {
-                    if (confirm('Tem certeza que deseja deletar este bloco de distância?')) {
-                        distanceBlock.remove();
-                        saveData();
+                // Add event listeners to the new buttons
+                distanceBlock.querySelector('.add-category-btn').addEventListener('click', function() {
+                    if (!isLocked) showCategoryModal(distanceId);
+                });
+                
+                distanceBlock.querySelector('.delete-distance-btn').addEventListener('click', function() {
+                    if (!isLocked) {
+                        if (confirm('Tem certeza que deseja excluir esta distância e todas as suas categorias?')) {
+                            distanceBlock.classList.add('opacity-0', 'h-0', 'overflow-hidden', 'transition-all', 'duration-300');
+                            setTimeout(() => {
+                                distanceBlock.remove();
+                                checkEmptyState();
+                                saveToLocalStorage();
+                            }, 300);
+                        }
                     }
                 });
                 
-                // Save when name changes
-                distanceBlock.querySelector('.distance-name').addEventListener('input', saveData);
-                
-                saveData();
+                return distanceBlock;
             }
             
-            function addCategory(distanceId) {
-                const distanceBlock = document.querySelector(`[data-distance-id="${distanceId}"]`);
+            function createCategoryBlock(distanceId, name, winnersCount) {
+                const distanceBlock = document.getElementById(distanceId);
+                if (!distanceBlock) return;
+                
+                const categoryId = 'category-' + Date.now();
                 const categoriesContainer = distanceBlock.querySelector('.categories-container');
-                const categoryId = Date.now();
                 
                 const categoryBlock = document.createElement('div');
-                categoryBlock.className = 'bg-gray-50 rounded-lg shadow-sm p-4';
-                categoryBlock.dataset.categoryId = categoryId;
+                categoryBlock.id = categoryId;
+                categoryBlock.className = 'bg-gray-50 rounded-lg p-3 border border-gray-200 fade-in';
                 
                 categoryBlock.innerHTML = `
-                    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
-                        <input type="text" class="category-name px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md" placeholder="Nome da Categoria">
-                        <div class="flex space-x-2">
-                            <input type="number" min="1" class="winners-count px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-20" placeholder="Qtd" value="3">
-                            <button class="add-winners bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
-                                <i class="fas fa-user-plus mr-1"></i> Premiados
-                            </button>
-                            <button class="delete-category bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
-                                <i class="fas fa-trash-alt mr-1"></i> Categoria
-                            </button>
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <h3 class="font-medium text-gray-700 responsive-text">${name}</h3>
+                            <p class="text-xs text-gray-500 mt-1">Categoria</p>
                         </div>
+                        <button class="delete-category-btn p-2 text-danger hover:bg-red-50 rounded-lg transition" data-category="${categoryId}" title="Remover categoria">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
                     </div>
                     <div class="winners-container space-y-2"></div>
                 `;
                 
                 categoriesContainer.appendChild(categoryBlock);
                 
-                // Add event listeners
-                categoryBlock.querySelector('.add-winners').addEventListener('click', () => {
-                    const count = parseInt(categoryBlock.querySelector('.winners-count').value) || 1;
-                    addWinners(categoryId, count);
-                });
-                
-                categoryBlock.querySelector('.delete-category').addEventListener('click', () => {
-                    if (confirm('Tem certeza que deseja deletar esta categoria?')) {
-                        categoryBlock.remove();
-                        saveData();
+                // Add event listener to delete button
+                categoryBlock.querySelector('.delete-category-btn').addEventListener('click', function() {
+                    if (!isLocked) {
+                        if (confirm('Tem certeza que deseja excluir esta categoria?')) {
+                            categoryBlock.classList.add('opacity-0', 'h-0', 'overflow-hidden', 'transition-all', 'duration-300');
+                            setTimeout(() => {
+                                categoryBlock.remove();
+                                saveToLocalStorage();
+                            }, 300);
+                        }
                     }
                 });
                 
-                // Save when inputs change
-                categoryBlock.querySelector('.category-name').addEventListener('input', saveData);
-                categoryBlock.querySelector('.winners-count').addEventListener('input', saveData);
+                // Create winners
+                const winnersContainer = categoryBlock.querySelector('.winners-container');
+                for (let i = 1; i <= winnersCount; i++) {
+                    createWinnerRow(winnersContainer, i);
+                }
                 
-                saveData();
+                return categoryBlock;
             }
             
-            function addWinners(categoryId, count) {
-                const categoryBlock = document.querySelector(`[data-category-id="${categoryId}"]`);
-                const winnersContainer = categoryBlock.querySelector('.winners-container');
+            function createWinnerRow(container, position) {
+                const row = document.createElement('div');
+                row.className = 'winner-row fade-in';
                 
-                // Clear existing winners if needed
-                // winnersContainer.innerHTML = '';
+                row.innerHTML = `
+                    <div class="number-bubble rounded-full bg-red-500 text-white flex items-center justify-center cursor-pointer hover:opacity-90 transition" data-position="${position}">
+                        ${position}
+                    </div>
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Número" maxlength="5" class="number-input px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition input-field">
+                    <input type="text" placeholder="Nome" maxlength="30" class="name-input px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition input-field">
+                `;
                 
-                for (let i = 0; i < count; i++) {
-                    const winnerId = Date.now() + i;
-                    const winnerItem = document.createElement('div');
-                    winnerItem.className = 'winner-item bg-white rounded-md p-3 border border-gray-200 flex items-center space-x-2 mobile-flex-col mobile-space-x-0 mobile-space-y-2';
-                    winnerItem.dataset.winnerId = winnerId;
-                    
-                    // Create draggable number circle
-                    const numberCircle = document.createElement('div');
-                    numberCircle.className = 'number-circle w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center cursor-move draggable';
-                    numberCircle.textContent = (winnersContainer.children.length + 1).toString();
-                    numberCircle.draggable = true;
-                    
-                    // Add drag events
-                    numberCircle.addEventListener('dragstart', (e) => {
-                        e.dataTransfer.setData('text/plain', winnerId);
-                        e.target.classList.add('opacity-50');
+                container.appendChild(row);
+                
+                // Add click event to number bubble
+                const bubble = row.querySelector('.number-bubble');
+                bubble.addEventListener('click', function() {
+                    if (bubble.classList.contains('bg-red-500')) {
+                        bubble.classList.remove('bg-red-500');
+                        bubble.classList.add('bg-green-500');
+                    } else {
+                        bubble.classList.remove('bg-green-500');
+                        bubble.classList.add('bg-red-500');
+                    }
+                    saveToLocalStorage();
+                });
+                
+                // Add input change events
+                const numberInput = row.querySelector('.number-input');
+                numberInput.addEventListener('change', saveToLocalStorage);
+                numberInput.addEventListener('input', function() {
+                    // Allow only numbers and limit to 5 characters
+                    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 5);
+                });
+                
+                const nameInput = row.querySelector('.name-input');
+                nameInput.addEventListener('change', saveToLocalStorage);
+                nameInput.addEventListener('input', function() {
+                    this.value = this.value.toUpperCase();
+                });
+                
+                return row;
+            }
+            
+            function clearAll() {
+                if (!isLocked && confirm('Tem certeza que deseja limpar todos os dados? Isso não pode be desfeito.')) {
+                    // Animate out all distances
+                    const distances = Array.from(distancesContainer.children);
+                    distances.forEach(distance => {
+                        distance.classList.add('opacity-0', 'h-0', 'overflow-hidden', 'transition-all', 'duration-300');
                     });
                     
-                    numberCircle.addEventListener('dragend', (e) => {
-                        e.target.classList.remove('opacity-50');
-                    });
-                    
-                    numberCircle.addEventListener('click', () => {
-                        numberCircle.classList.toggle('bg-red-500');
-                        numberCircle.classList.toggle('bg-green-500');
-                        saveData();
-                    });
-                    
-                    // Create input fields
-                    const numberInput = document.createElement('input');
-                    numberInput.type = 'text';
-                    numberInput.placeholder = 'Número';
-                    numberInput.className = 'winner-number px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 mobile-w-full';
-                    
-                    const nameInput = document.createElement('input');
-                    nameInput.type = 'text';
-                    nameInput.placeholder = 'Nome';
-                    nameInput.className = 'winner-name px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 flex-grow mobile-w-full';
-                    
-                    // Create delete button
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'delete-winner bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded-lg text-sm flex items-center mobile-w-full';
-                    deleteBtn.innerHTML = '<i class="fas fa-times mr-1"></i>';
-                    
-                    deleteBtn.addEventListener('click', () => {
-                        winnerItem.remove();
-                        updateWinnerNumbers(winnersContainer);
-                        saveData();
-                    });
-                    
-                    // Add drag and drop to the whole item
-                    winnerItem.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-                    });
-                    
-                    winnerItem.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        const draggedId = e.dataTransfer.getData('text/plain');
-                        const draggedItem = document.querySelector(`[data-winner-id="${draggedId}"]`);
+                    setTimeout(() => {
+                        distancesContainer.innerHTML = '';
+                        eventNameInput.value = '';
+                        checkEmptyState();
+                        clearImportedData();
+                        localStorage.clear();
                         
-                        if (draggedItem && draggedItem !== winnerItem) {
-                            const winnerItems = Array.from(winnersContainer.children);
-                            const draggedIndex = winnerItems.indexOf(draggedItem);
-                            const targetIndex = winnerItems.indexOf(winnerItem);
+                        // Show feedback
+                        showToast('Todos os dados foram removidos', 'info');
+                    }, 300);
+                }
+            }
+            
+            function toggleLock() {
+                isLocked = !isLocked;
+                
+                if (isLocked) {
+                    lockBtn.innerHTML = '<i class="fas fa-lock-open"></i>';
+                    lockBtn.title = "Desbloquear edição";
+                    document.body.classList.add('locked');
+                    showToast('Edição bloqueada', 'info');
+                } else {
+                    lockBtn.innerHTML = '<i class="fas fa-lock"></i>';
+                    lockBtn.title = "Bloquear edição";
+                    document.body.classList.remove('locked');
+                    showToast('Edição desbloqueada', 'info');
+                }
+            }
+            
+            function checkEmptyState() {
+                if (distancesContainer.children.length === 0) {
+                    emptyState.classList.remove('hidden');
+                } else {
+                    emptyState.classList.add('hidden');
+                }
+            }
+            
+            function handleFileImport(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        let data;
+                        if (file.name.endsWith('.xlsx')) {
+                            const workbook = XLSX.read(e.target.result, {type: 'binary'});
+                            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                            data = XLSX.utils.sheet_to_json(firstSheet);
                             
-                            if (draggedIndex < targetIndex) {
-                                winnersContainer.insertBefore(draggedItem, winnerItem.nextSibling);
-                            } else {
-                                winnersContainer.insertBefore(draggedItem, winnerItem);
+                            // Mapear colunas para os nomes padrão
+                            if (data && data.length > 0) {
+                                const firstRow = data[0];
+                                const columnMapping = {};
+                                
+                                // Tentar identificar as colunas automaticamente
+                                for (const key in firstRow) {
+                                    const lowerKey = key.toLowerCase();
+                                    if (lowerKey.includes('número') || lowerKey.includes('numero')) {
+                                        columnMapping.number = key;
+                                    } else if (lowerKey.includes('nome')) {
+                                        columnMapping.name = key;
+                                    } else if (lowerKey.includes('equipe')) {
+                                        columnMapping.team = key;
+                                    } else if (lowerKey.includes('sexo')) {
+                                        columnMapping.gender = key;
+                                    } else if (lowerKey.includes('faixa') || lowerKey.includes('idade')) {
+                                        columnMapping.ageGroup = key;
+                                    } else if (lowerKey.includes('modalidade') || lowerKey.includes('distância') || lowerKey.includes('distancia')) {
+                                        columnMapping.modality = key;
+                                    }
+                                }
+                                
+                                // Renomear as colunas para nomes padrão
+                                data = data.map(row => {
+                                    return {
+                                        NUMERO: columnMapping.number ? row[columnMapping.number] : '',
+                                        NOME: columnMapping.name ? row[columnMapping.name] : '',
+                                        EQUIPE: columnMapping.team ? row[columnMapping.team] : '',
+                                        SEXO: columnMapping.gender ? row[columnMapping.gender] : '',
+                                        FAIXA_ETARIA: columnMapping.ageGroup ? row[columnMapping.ageGroup] : '',
+                                        MODALIDADE: columnMapping.modality ? row[columnMapping.modality] : ''
+                                    };
+                                });
+                            }
+                        } else if (file.name.endsWith('.csv')) {
+                            data = parseCSV(e.target.result);
+                        } else {
+                            throw new Error('Formato de arquivo não suportado');
+                        }
+                        
+                        importedData = Array.isArray(data) ? data : [data];
+                        displayImportedData();
+                        showToast(`Dados importados: ${importedData.length} registros`, 'success');
+                    } catch (error) {
+                        showToast('Erro ao importar dados: ' + error.message, 'error');
+                    }
+                };
+                
+                if (file.name.endsWith('.xlsx')) {
+                    reader.readAsBinaryString(file);
+                } else {
+                    reader.readAsText(file);
+                }
+            }
+            
+            function parseCSV(csvText) {
+                const lines = csvText.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim());
+                const result = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue;
+                    
+                    const obj = {};
+                    const currentLine = lines[i].split(',');
+                    
+                    for (let j = 0; j < headers.length; j++) {
+                        obj[headers[j]] = currentLine[j] ? currentLine[j].trim() : '';
+                    }
+                    
+                    result.push(obj);
+                }
+                
+                return result;
+            }
+            
+            function displayImportedData() {
+                importResults.innerHTML = '';
+                importResults.classList.remove('hidden');
+                
+                if (importedData.length === 0) {
+                    importResults.innerHTML = '<p class="text-gray-500 p-3 text-center">Nenhum dado importado</p>';
+                    return;
+                }
+                
+                const table = document.createElement('div');
+                table.className = 'w-full text-xs border border-gray-200 rounded-lg overflow-hidden';
+                
+                // Header
+                const headerRow = document.createElement('div');
+                headerRow.className = 'flex bg-gray-100 font-medium border-b border-gray-200';
+                headerRow.innerHTML = `
+                    <div class="p-2 w-1/6 border-r border-gray-200">Pos</div>
+                    <div class="p-2 w-1/6 border-r border-gray-200">Número</div>
+                    <div class="p-2 w-2/6 border-r border-gray-200">Nome</div>
+                    <div class="p-2 w-1/6 border-r border-gray-200">Equipe</div>
+                    <div class="p-2 w-1/6">Modalidade</div>
+                `;
+                table.appendChild(headerRow);
+                
+                // Rows
+                importedData.forEach((item, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex border-b border-gray-200 hover:bg-gray-50 cursor-pointer';
+                    row.innerHTML = `
+                        <div class="p-2 w-1/6 border-r border-gray-200">${index + 1}</div>
+                        <div class="p-2 w-1/6 border-r border-gray-200">${item.NUMERO || item.numero || ''}</div>
+                        <div class="p-2 w-2/6 border-r border-gray-200">${item.NOME || item.nome || ''}</div>
+                        <div class="p-2 w-1/6 border-r border-gray-200">${item.EQUIPE || item.equipe || ''}</div>
+                        <div class="p-2 w-1/6">${item.MODALIDADE || item.modalidade || ''}</div>
+                    `;
+                    
+                    // Add click event to fill data
+                    row.addEventListener('click', function() {
+                        searchInput.value = '';
+                        importResults.classList.add('hidden');
+                        
+                        // Try to find matching distance and category
+                        const modality = item.MODALIDADE || item.modalidade || '';
+                        const gender = item.SEXO || item.sexo || '';
+                        const ageGroup = item.FAIXA_ETARIA || item.faixa_etaria || '';
+                        
+                        if (modality) {
+                            let distanceBlock = findDistanceBlock(modality);
+                            
+                            if (!distanceBlock && confirm(`Deseja criar uma nova distância "${modality}"?`)) {
+                                distanceBlock = createDistanceBlock(modality);
+                                checkEmptyState();
                             }
                             
-                            updateWinnerNumbers(winnersContainer);
-                            saveData();
+                            if (distanceBlock && (gender || ageGroup)) {
+                                const categoryName = [gender, ageGroup].filter(Boolean).join(' ');
+                                let categoryBlock = findCategoryBlock(distanceBlock, categoryName);
+                                
+                                if (!categoryBlock && confirm(`Deseja criar uma nova categoria "${categoryName}" na distância "${modality}"?`)) {
+                                    categoryBlock = createCategoryBlock(distanceBlock.id, categoryName, 3);
+                                }
+                                
+                                if (categoryBlock) {
+                                    // Focus on first empty input in category
+                                    const firstEmptyInput = categoryBlock.querySelector('input[value=""]');
+                                    if (firstEmptyInput) {
+                                        firstEmptyInput.focus();
+                                        if (item.NUMERO || item.numero) {
+                                            firstEmptyInput.value = item.NUMERO || item.numero;
+                                            const nameInput = firstEmptyInput.nextElementSibling;
+                                            if (nameInput && (item.NOME || item.nome)) {
+                                                nameInput.value = item.NOME || item.nome;
+                                                nameInput.focus();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     });
                     
-                    // Input change events
-                    numberInput.addEventListener('input', saveData);
-                    nameInput.addEventListener('input', saveData);
-                    
-                    // Assemble the item
-                    winnerItem.appendChild(numberCircle);
-                    winnerItem.appendChild(numberInput);
-                    winnerItem.appendChild(nameInput);
-                    winnerItem.appendChild(deleteBtn);
-                    
-                    winnersContainer.appendChild(winnerItem);
-                }
+                    table.appendChild(row);
+                });
                 
-                updateWinnerNumbers(winnersContainer);
-                saveData();
+                importResults.appendChild(table);
             }
             
-            function updateWinnerNumbers(container) {
-                const winners = container.querySelectorAll('.winner-item');
-                winners.forEach((winner, index) => {
-                    const numberCircle = winner.querySelector('.number-circle');
-                    numberCircle.textContent = (index + 1).toString();
+            function findDistanceBlock(name) {
+                const distances = Array.from(distancesContainer.children);
+                return distances.find(distance => {
+                    const title = distance.querySelector('h2').textContent;
+                    return title.toLowerCase() === name.toLowerCase();
                 });
             }
             
-            function clearAllData() {
-                if (confirm('Tem certeza que deseja limpar TODOS os dados? Esta ação não pode ser desfeita.')) {
-                    distancesContainer.innerHTML = '';
-                    localStorage.removeItem('raceArrivalData');
-                    eventNameInput.value = '';
-                }
+            function findCategoryBlock(distanceBlock, name) {
+                const categories = Array.from(distanceBlock.querySelectorAll('.categories-container > div'));
+                return categories.find(category => {
+                    const title = category.querySelector('h3').textContent;
+                    return title.toLowerCase() === name.toLowerCase();
+                });
             }
             
-            function saveData() {
+            function clearImportedData() {
+                importedData = [];
+                importResults.innerHTML = '';
+                importResults.classList.add('hidden');
+                importFile.value = '';
+            }
+            
+            function handleSearch() {
+                const query = searchInput.value.toLowerCase();
+                
+                if (!query) {
+                    // Show all if search is empty
+                    document.querySelectorAll('.categories-container > div').forEach(category => {
+                        category.style.display = '';
+                    });
+                    importResults.classList.add('hidden');
+                    return;
+                }
+                
+                // Filter imported data
+                if (importedData.length > 0) {
+                    const filtered = importedData.filter(item => {
+                        const numero = String(item.NUMERO || item.numero || '').toLowerCase();
+                        const nome = String(item.NOME || item.nome || '').toLowerCase();
+                        return numero.includes(query) || nome.includes(query);
+                    });
+                    
+                    if (filtered.length > 0) {
+                        importResults.innerHTML = '';
+                        const table = document.createElement('div');
+                        table.className = 'w-full text-xs border border-gray-200 rounded-lg overflow-hidden';
+                        
+                        // Header
+                        const headerRow = document.createElement('div');
+                        headerRow.className = 'flex bg-gray-100 font-medium border-b border-gray-200';
+                        headerRow.innerHTML = `
+                            <div class="p-2 w-1/6 border-r border-gray-200">Pos</div>
+                            <div class="p-2 w-1/6 border-r border-gray-200">Número</div>
+                            <div class="p-2 w-2/6 border-r border-gray-200">Nome</div>
+                            <div class="p-2 w-1/6 border-r border-gray-200">Equipe</div>
+                            <div class="p-2 w-1/6">Modalidade</div>
+                        `;
+                        table.appendChild(headerRow);
+                        
+                        // Rows
+                        filtered.forEach((item, index) => {
+                            const row = document.createElement('div');
+                            row.className = 'flex border-b border-gray-200 hover:bg-gray-50 cursor-pointer';
+                            row.innerHTML = `
+                                <div class="p-2 w-1/6 border-r border-gray-200">${index + 1}</div>
+                                <div class="p-2 w-1/6 border-r border-gray-200">${item.NUMERO || item.numero || ''}</div>
+                                <div class="p-2 w-2/6 border-r border-gray-200">${item.NOME || item.nome || ''}</div>
+                                <div class="p-2 w-1/6 border-r border-gray-200">${item.EQUIPE || item.equipe || ''}</div>
+                                <div class="p-2 w-1/6">${item.MODALIDADE || item.modalidade || ''}</div>
+                            `;
+                            
+                            // Add click event to fill data
+                            row.addEventListener('click', function() {
+                                searchInput.value = '';
+                                importResults.classList.add('hidden');
+                                
+                                // Try to find matching distance and category
+                                const modality = item.MODALIDADE || item.modalidade || '';
+                                const gender = item.SEXO || item.sexo || '';
+                                const ageGroup = item.FAIXA_ETARIA || item.faixa_etaria || '';
+                                
+                                if (modality) {
+                                    let distanceBlock = findDistanceBlock(modality);
+                                    
+                                    if (!distanceBlock && confirm(`Deseja criar uma nova distância "${modality}"?`)) {
+                                        distanceBlock = createDistanceBlock(modality);
+                                        checkEmptyState();
+                                    }
+                                    
+                                    if (distanceBlock && (gender || ageGroup)) {
+                                        const categoryName = [gender, ageGroup].filter(Boolean).join(' ');
+                                        let categoryBlock = findCategoryBlock(distanceBlock, categoryName);
+                                        
+                                        if (!categoryBlock && confirm(`Deseja criar uma nova categoria "${categoryName}" na distância "${modality}"?`)) {
+                                            categoryBlock = createCategoryBlock(distanceBlock.id, categoryName, 3);
+                                        }
+                                        
+                                        if (categoryBlock) {
+                                            // Focus on first empty input in category
+                                            const firstEmptyInput = categoryBlock.querySelector('input[value=""]');
+                                            if (firstEmptyInput) {
+                                                firstEmptyInput.focus();
+                                                if (item.NUMERO || item.numero) {
+                                                    firstEmptyInput.value = item.NUMERO || item.numero;
+                                                    const nameInput = firstEmptyInput.nextElementSibling;
+                                                    if (nameInput && (item.NOME || item.nome)) {
+                                                        nameInput.value = item.NOME || item.nome;
+                                                        nameInput.focus();
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                            
+                            table.appendChild(row);
+                        });
+                        
+                        importResults.innerHTML = '';
+                        importResults.appendChild(table);
+                        importResults.classList.remove('hidden');
+                    } else {
+                        importResults.innerHTML = '<p class="text-gray-500 p-3 text-center">Nenhum resultado encontrado</p>';
+                        importResults.classList.remove('hidden');
+                    }
+                }
+                
+                // Also search in current winners (optional)
+                document.querySelectorAll('.winners-container > div').forEach(row => {
+                    const inputs = row.querySelectorAll('input');
+                    const number = inputs[0].value.toLowerCase();
+                    const name = inputs[1].value.toLowerCase();
+                    
+                    if (number.includes(query) || name.includes(query)) {
+                        row.style.display = 'flex';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+            
+            function exportData() {
+                const eventName = eventNameInput.value.trim();
+                let exportText = `Evento: ${eventName}\n`;
+                exportText += `Data: ${new Date().toLocaleDateString()}\n\n`;
+                
+                // Get all distances
+                const distances = Array.from(distancesContainer.children);
+                
+                if (distances.length === 0) {
+                    showToast('Nenhum dado para exportar', 'warning');
+                    return;
+                }
+                
+                distances.forEach(distanceBlock => {
+                    const distanceName = distanceBlock.querySelector('h2').textContent;
+                    exportText += `=== ${distanceName} ===\n`;
+                    
+                    // Get all categories in this distance
+                    const categories = Array.from(distanceBlock.querySelectorAll('.categories-container > div'));
+                    
+                    categories.forEach(categoryBlock => {
+                        const categoryName = categoryBlock.querySelector('h3').textContent;
+                        exportText += `\nCategoria: ${categoryName}\n`;
+                        exportText += '--------------------------------\n';
+                        
+                        // Get all winners in this category
+                        const winners = Array.from(categoryBlock.querySelectorAll('.winners-container > div'));
+                        
+                        winners.forEach(winnerRow => {
+                            const position = winnerRow.querySelector('.number-bubble').textContent;
+                            const isGreen = winnerRow.querySelector('.number-bubble').classList.contains('bg-green-500');
+                            const number = winnerRow.querySelector('input[placeholder="Número"]').value;
+                            const name = winnerRow.querySelector('input[placeholder="Nome"]').value;
+                            
+                            if (number || name) {
+                                exportText += `${position}. ${number} - ${name}`;
+                                if (isGreen) exportText += ' (PREMIADO)';
+                                exportText += '\n';
+                            }
+                        });
+                    });
+                    
+                    exportText += '\n';
+                });
+                
+                // Create download link
+                const blob = new Blob([exportText], {type: 'text/plain'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `chegada_${eventName || 'evento'}_${new Date().toISOString().slice(0,10)}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Show success feedback
+                showToast('Dados exportados com sucesso!', 'success');
+            }
+            
+            function saveToLocalStorage() {
                 const data = {
                     eventName: eventNameInput.value,
                     distances: []
                 };
                 
-                document.querySelectorAll('[data-distance-id]').forEach(distanceBlock => {
+                // Get all distances
+                const distanceBlocks = Array.from(distancesContainer.children);
+                
+                distanceBlocks.forEach(distanceBlock => {
                     const distance = {
-                        id: distanceBlock.dataset.distanceId,
-                        name: distanceBlock.querySelector('.distance-name').value,
+                        id: distanceBlock.id,
+                        name: distanceBlock.querySelector('h2').textContent,
                         categories: []
                     };
                     
-                    distanceBlock.querySelectorAll('[data-category-id]').forEach(categoryBlock => {
+                    // Get all categories in this distance
+                    const categoryBlocks = Array.from(distanceBlock.querySelectorAll('.categories-container > div'));
+                    
+                    categoryBlocks.forEach(categoryBlock => {
                         const category = {
-                            id: categoryBlock.dataset.categoryId,
-                            name: categoryBlock.querySelector('.category-name').value,
-                            winnersCount: categoryBlock.querySelector('.winners-count').value,
+                            id: categoryBlock.id,
+                            name: categoryBlock.querySelector('h3').textContent,
                             winners: []
                         };
                         
-                        categoryBlock.querySelectorAll('.winner-item').forEach(winnerItem => {
-                            const winner = {
-                                id: winnerItem.dataset.winnerId,
-                                number: winnerItem.querySelector('.winner-number').value,
-                                name: winnerItem.querySelector('.winner-name').value,
-                                arrived: winnerItem.querySelector('.number-circle').classList.contains('bg-green-500')
-                            };
-                            category.winners.push(winner);
+                        // Get all winners in this category
+                        const winnerRows = Array.from(categoryBlock.querySelectorAll('.winners-container > div'));
+                        
+                        winnerRows.forEach(winnerRow => {
+                            const position = winnerRow.querySelector('.number-bubble').textContent;
+                            const isGreen = winnerRow.querySelector('.number-bubble').classList.contains('bg-green-500');
+                            const number = winnerRow.querySelector('input[placeholder="Número"]').value;
+                            const name = winnerRow.querySelector('input[placeholder="Nome"]').value;
+                            
+                            category.winners.push({
+                                position,
+                                isGreen,
+                                number,
+                                name
+                            });
                         });
                         
                         distance.categories.push(category);
@@ -381,340 +1045,94 @@
                 localStorage.setItem('raceArrivalData', JSON.stringify(data));
             }
             
-            function loadData() {
+            function loadFromLocalStorage() {
                 const savedData = localStorage.getItem('raceArrivalData');
                 if (!savedData) return;
                 
-                const data = JSON.parse(savedData);
-                
-                // Clear existing data
-                distancesContainer.innerHTML = '';
-                eventNameInput.value = data.eventName || '';
-                
-                // Rebuild the UI from saved data
-                data.distances.forEach(distance => {
-                    const distanceBlock = document.createElement('div');
-                    distanceBlock.className = 'bg-white rounded-lg shadow-md p-4 mb-6';
-                    distanceBlock.dataset.distanceId = distance.id;
+                try {
+                    const data = JSON.parse(savedData);
                     
-                    distanceBlock.innerHTML = `
-                        <div class="flex justify-between items-center mb-4">
-                            <input type="text" class="distance-name px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md" value="${distance.name || ''}" placeholder="Nome da Distância">
-                            <div class="flex space-x-2">
-                                <button class="add-category bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
-                                    <i class="fas fa-plus mr-1"></i> Categoria
-                                </button>
-                                <button class="delete-distance bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
-                                    <i class="fas fa-trash-alt mr-1"></i> Bloco
-                                </button>
-                            </div>
-                        </div>
-                        <div class="categories-container space-y-4"></div>
-                    `;
+                    // Set event name
+                    if (data.eventName) {
+                        eventNameInput.value = data.eventName;
+                    }
                     
-                    distancesContainer.appendChild(distanceBlock);
-                    
-                    // Add event listeners for the new buttons
-                    distanceBlock.querySelector('.add-category').addEventListener('click', () => addCategory(distance.id));
-                    distanceBlock.querySelector('.delete-distance').addEventListener('click', () => {
-                        if (confirm('Tem certeza que deseja deletar este bloco de distância?')) {
-                            distanceBlock.remove();
-                            saveData();
-                        }
-                    });
-                    
-                    // Load categories
-                    const categoriesContainer = distanceBlock.querySelector('.categories-container');
-                    
-                    distance.categories.forEach(category => {
-                        const categoryBlock = document.createElement('div');
-                        categoryBlock.className = 'bg-gray-50 rounded-lg shadow-sm p-4';
-                        categoryBlock.dataset.categoryId = category.id;
-                        
-                        categoryBlock.innerHTML = `
-                            <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
-                                <input type="text" class="category-name px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md" value="${category.name || ''}" placeholder="Nome da Categoria">
-                                <div class="flex space-x-2">
-                                    <input type="number" min="1" class="winners-count px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-20" value="${category.winnersCount || 3}" placeholder="Qtd">
-                                    <button class="add-winners bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
-                                        <i class="fas fa-user-plus mr-1"></i> Premiados
-                                    </button>
-                                    <button class="delete-category bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm flex items-center">
-                                        <i class="fas fa-trash-alt mr-1"></i> Categoria
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="winners-container space-y-2"></div>
-                        `;
-                        
-                        categoriesContainer.appendChild(categoryBlock);
-                        
-                        // Add event listeners
-                        categoryBlock.querySelector('.add-winners').addEventListener('click', () => {
-                            const count = parseInt(categoryBlock.querySelector('.winners-count').value) || 1;
-                            addWinners(category.id, count);
-                        });
-                        
-                        categoryBlock.querySelector('.delete-category').addEventListener('click', () => {
-                            if (confirm('Tem certeza que deseja deletar esta categoria?')) {
-                                categoryBlock.remove();
-                                saveData();
+                    // Recreate distances
+                    if (data.distances && data.distances.length > 0) {
+                        data.distances.forEach(distance => {
+                            const distanceBlock = createDistanceBlock(distance.name);
+                            distanceBlock.id = distance.id;
+                            
+                            // Recreate categories
+                            if (distance.categories && distance.categories.length > 0) {
+                                distance.categories.forEach(category => {
+                                    const winnersCount = category.winners.length;
+                                    const categoryBlock = createCategoryBlock(distance.id, category.name, winnersCount);
+                                    categoryBlock.id = category.id;
+                                    
+                                    // Set winners data
+                                    const winnerRows = categoryBlock.querySelectorAll('.winners-container > div');
+                                    category.winners.forEach((winner, index) => {
+                                        if (index < winnerRows.length) {
+                                            const row = winnerRows[index];
+                                            const bubble = row.querySelector('.number-bubble');
+                                            const numberInput = row.querySelector('input[placeholder="Número"]');
+                                            const nameInput = row.querySelector('input[placeholder="Nome"]');
+                                            
+                                            bubble.textContent = winner.position;
+                                            if (winner.isGreen) {
+                                                bubble.classList.remove('bg-red-500');
+                                                bubble.classList.add('bg-green-500');
+                                            }
+                                            
+                                            numberInput.value = winner.number || '';
+                                            nameInput.value = winner.name || '';
+                                        }
+                                    });
+                                });
                             }
                         });
                         
-                        // Load winners
-                        const winnersContainer = categoryBlock.querySelector('.winners-container');
-                        
-                        category.winners.forEach(winner => {
-                            const winnerItem = document.createElement('div');
-                            winnerItem.className = 'winner-item bg-white rounded-md p-3 border border-gray-200 flex items-center space-x-2 mobile-flex-col mobile-space-x-0 mobile-space-y-2';
-                            winnerItem.dataset.winnerId = winner.id;
-                            
-                            // Create draggable number circle
-                            const numberCircle = document.createElement('div');
-                            numberCircle.className = `number-circle w-8 h-8 rounded-full ${winner.arrived ? 'bg-green-500' : 'bg-red-500'} text-white flex items-center justify-center cursor-move draggable`;
-                            numberCircle.textContent = (winnersContainer.children.length + 1).toString();
-                            numberCircle.draggable = true;
-                            
-                            // Add drag events
-                            numberCircle.addEventListener('dragstart', (e) => {
-                                e.dataTransfer.setData('text/plain', winner.id);
-                                e.target.classList.add('opacity-50');
-                            });
-                            
-                            numberCircle.addEventListener('dragend', (e) => {
-                                e.target.classList.remove('opacity-50');
-                            });
-                            
-                            numberCircle.addEventListener('click', () => {
-                                numberCircle.classList.toggle('bg-red-500');
-                                numberCircle.classList.toggle('bg-green-500');
-                                saveData();
-                            });
-                            
-                            // Create input fields
-                            const numberInput = document.createElement('input');
-                            numberInput.type = 'text';
-                            numberInput.placeholder = 'Número';
-                            numberInput.className = 'winner-number px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 mobile-w-full';
-                            numberInput.value = winner.number || '';
-                            
-                            const nameInput = document.createElement('input');
-                            nameInput.type = 'text';
-                            nameInput.placeholder = 'Nome';
-                            nameInput.className = 'winner-name px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 flex-grow mobile-w-full';
-                            nameInput.value = winner.name || '';
-                            
-                            // Create delete button
-                            const deleteBtn = document.createElement('button');
-                            deleteBtn.className = 'delete-winner bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded-lg text-sm flex items-center mobile-w-full';
-                            deleteBtn.innerHTML = '<i class="fas fa-times mr-1"></i>';
-                            
-                            deleteBtn.addEventListener('click', () => {
-                                winnerItem.remove();
-                                updateWinnerNumbers(winnersContainer);
-                                saveData();
-                            });
-                            
-                            // Add drag and drop to the whole item
-                            winnerItem.addEventListener('dragover', (e) => {
-                                e.preventDefault();
-                            });
-                            
-                            winnerItem.addEventListener('drop', (e) => {
-                                e.preventDefault();
-                                const draggedId = e.dataTransfer.getData('text/plain');
-                                const draggedItem = document.querySelector(`[data-winner-id="${draggedId}"]`);
-                                
-                                if (draggedItem && draggedItem !== winnerItem) {
-                                    const winnerItems = Array.from(winnersContainer.children);
-                                    const draggedIndex = winnerItems.indexOf(draggedItem);
-                                    const targetIndex = winnerItems.indexOf(winnerItem);
-                                    
-                                    if (draggedIndex < targetIndex) {
-                                        winnersContainer.insertBefore(draggedItem, winnerItem.nextSibling);
-                                    } else {
-                                        winnersContainer.insertBefore(draggedItem, winnerItem);
-                                    }
-                                    
-                                    updateWinnerNumbers(winnersContainer);
-                                    saveData();
-                                }
-                            });
-                            
-                            // Input change events
-                            numberInput.addEventListener('input', saveData);
-                            nameInput.addEventListener('input', saveData);
-                            
-                            // Assemble the item
-                            winnerItem.appendChild(numberCircle);
-                            winnerItem.appendChild(numberInput);
-                            winnerItem.appendChild(nameInput);
-                            winnerItem.appendChild(deleteBtn);
-                            
-                            winnersContainer.appendChild(winnerItem);
-                        });
-                        
-                        updateWinnerNumbers(winnersContainer);
-                    });
-                    
-                    // Save when inputs change
-                    distanceBlock.querySelector('.distance-name').addEventListener('input', saveData);
-                });
-            }
-            
-            function exportAsJSON() {
-                const data = JSON.parse(localStorage.getItem('raceArrivalData') || '{}');
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `controle-chegada-${data.eventName || 'evento'}-${new Date().toISOString().slice(0, 10)}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                exportModal.classList.add('hidden');
-            }
-            
-            function exportAsCSV() {
-                const data = JSON.parse(localStorage.getItem('raceArrivalData') || '{}');
-                let csvContent = "Distância,Categoria,Posição,Número,Nome,Chegou\n";
-                
-                data.distances.forEach(distance => {
-                    distance.categories.forEach(category => {
-                        category.winners.forEach((winner, index) => {
-                            csvContent += `"${distance.name || ''}","${category.name || ''}",${index + 1},"${winner.number || ''}","${winner.name || ''}",${winner.arrived ? 'Sim' : 'Não'}\n`;
-                        });
-                    });
-                });
-                
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `controle-chegada-${data.eventName || 'evento'}-${new Date().toISOString().slice(0, 10)}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                exportModal.classList.add('hidden');
-            }
-            
-            function exportAsExcel() {
-                const data = JSON.parse(localStorage.getItem('raceArrivalData') || '{}');
-                const wb = XLSX.utils.book_new();
-                
-                // Prepare data for Excel
-                const excelData = [['Distância', 'Categoria', 'Posição', 'Número', 'Nome', 'Chegou']];
-                
-                data.distances.forEach(distance => {
-                    distance.categories.forEach(category => {
-                        category.winners.forEach((winner, index) => {
-                            excelData.push([
-                                distance.name || '',
-                                category.name || '',
-                                index + 1,
-                                winner.number || '',
-                                winner.name || '',
-                                winner.arrived ? 'Sim' : 'Não'
-                            ]);
-                        });
-                    });
-                });
-                
-                const ws = XLSX.utils.aoa_to_sheet(excelData);
-                XLSX.utils.book_append_sheet(wb, ws, 'Controle de Chegada');
-                
-                XLSX.writeFile(wb, `controle-chegada-${data.eventName || 'evento'}-${new Date().toISOString().slice(0, 10)}.xlsx`);
-                
-                exportModal.classList.add('hidden');
-            }
-            
-            function importData() {
-                const file = importFileInput.files[0];
-                if (!file) {
-                    alert('Por favor, selecione um arquivo para importar.');
-                    return;
-                }
-                
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    try {
-                        let data;
-                        
-                        if (file.name.endsWith('.json')) {
-                            data = JSON.parse(e.target.result);
-                        } else if (file.name.endsWith('.csv')) {
-                            // Simple CSV parsing (for demo purposes)
-                            const csv = e.target.result;
-                            const lines = csv.split('\n');
-                            const headers = lines[0].split(',');
-                            data = { distances: [] };
-                            
-                            // This is a simplified CSV import - would need more robust parsing for production
-                            // Here we're just demonstrating the concept
-                            alert('Importação de CSV é limitada nesta demonstração. Use JSON para melhor compatibilidade.');
-                            return;
-                        } else if (file.name.endsWith('.xlsx')) {
-                            // Simple Excel parsing (for demo purposes)
-                            alert('Importação de Excel é limitada nesta demonstração. Use JSON para melhor compatibilidade.');
-                            return;
-                        } else {
-                            alert('Formato de arquivo não suportado. Use JSON, CSV ou XLSX.');
-                            return;
-                        }
-                        
-                        if (confirm('Importar estes dados? Os dados atuais serão substituídos.')) {
-                            localStorage.setItem('raceArrivalData', JSON.stringify(data));
-                            loadData();
-                            importModal.classList.add('hidden');
-                            alert('Dados importados com sucesso!');
-                        }
-                    } catch (error) {
-                        console.error('Erro ao importar dados:', error);
-                        alert('Erro ao importar dados. Verifique o formato do arquivo.');
+                        checkEmptyState();
                     }
-                };
-                
-                if (file.name.endsWith('.json')) {
-                    reader.readAsText(file);
-                } else if (file.name.endsWith('.csv')) {
-                    reader.readAsText(file);
-                } else if (file.name.endsWith('.xlsx')) {
-                    reader.readAsArrayBuffer(file);
-                } else {
-                    alert('Formato de arquivo não suportado. Use JSON, CSV ou XLSX.');
+                } catch (e) {
+                    console.error('Error loading saved data:', e);
                 }
             }
             
-            // Initialize Sortable for winners containers
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('add-winners') || e.target.closest('.add-winners')) {
-                    const categoryBlock = e.target.closest('[data-category-id]');
-                    const winnersContainer = categoryBlock.querySelector('.winners-container');
-                    
-                    new Sortable(winnersContainer, {
-                        animation: 150,
-                        handle: '.number-circle',
-                        draggable: '.winner-item',
-                        ghostClass: 'sortable-ghost',
-                        chosenClass: 'sortable-chosen',
-                        onEnd: function() {
-                            updateWinnerNumbers(winnersContainer);
-                            saveData();
-                        }
-                    });
+            function showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white font-medium text-sm flex items-center gap-2 z-50 fade-in`;
+                
+                // Set color based on type
+                switch(type) {
+                    case 'success':
+                        toast.className += ' bg-green-500';
+                        toast.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+                        break;
+                    case 'error':
+                        toast.className += ' bg-red-500';
+                        toast.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+                        break;
+                    case 'warning':
+                        toast.className += ' bg-yellow-500';
+                        toast.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+                        break;
+                    default:
+                        toast.className += ' bg-blue-500';
+                        toast.innerHTML = `<i class="fas fa-info-circle"></i> ${message}`;
                 }
-            });
-            
-            // Auto-save when event name changes
-            eventNameInput.addEventListener('input', saveData);
+                
+                document.body.appendChild(toast);
+                
+                // Auto remove after 3 seconds
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 3000);
+            }
         });
     </script>
 </body>
