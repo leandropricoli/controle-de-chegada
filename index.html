@@ -65,10 +65,11 @@
             align-items: center;
             gap: 0.5rem;
             width: 100%;
+            cursor: move;
         }
         
         .number-input {
-            width: 4.5rem;
+            width: 5.5rem;
             flex-shrink: 0;
         }
         
@@ -95,6 +96,54 @@
             to { transform: translateX(0); }
         }
         
+        .dragging {
+            opacity: 0.5;
+            background-color: #e2e8f0;
+        }
+        
+        .dropzone {
+            border: 2px dashed #cbd5e1;
+            background-color: #f8fafc;
+        }
+        
+        .drop-target {
+            border: 2px dashed #3b82f6;
+            background-color: #eff6ff;
+        }
+        
+        /* Custom scrollbar for table */
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        .table-container::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* Detail modal styles */
+        .detail-modal {
+            transition: all 0.3s ease;
+        }
+        
+        .detail-modal-content {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
         @media (max-width: 640px) {
             .responsive-text {
                 font-size: 0.85rem;
@@ -112,12 +161,16 @@
             }
             
             .number-input {
-                width: 3.8rem;
+                width: 4.8rem;
             }
             
             .modal-container {
                 width: 95%;
                 margin: 0 auto;
+            }
+            
+            .detail-modal {
+                width: 95%;
             }
         }
     </style>
@@ -191,6 +244,9 @@
                 <input type="text" id="searchInput" placeholder="Digite para buscar..." 
                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition pr-10">
                 <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+                <button id="clearSearchBtn" class="absolute right-8 top-3 text-gray-400 hover:text-gray-600 hidden">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div id="importResults" class="mt-3 hidden max-h-60 overflow-y-auto scrollable-container border-t pt-3 rounded-lg bg-gray-50"></div>
         </div>
@@ -203,7 +259,7 @@
             <div class="mx-auto w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
                 <i class="fas fa-flag-checkered text-2xl text-primary"></i>
             </div>
-            <h3 class="text-lg font-medium text-gray-700 mb-1">Nenhuma distância adicionada</h3>
+            <h3 class="text-lg font-medium text-gray-7 mb-1">Nenhuma distância adicionada</h3>
             <p class="text-gray-500 mb-6">Comece adicionando uma distância para registrar os resultados</p>
             <button id="addFirstDistanceBtn" class="bg-primary hover:bg-blue-700 text-white py-2 px-6 rounded-lg transition inline-flex items-center gap-2 shadow-md">
                 <i class="fas fa-plus"></i> Adicionar Distância
@@ -221,9 +277,14 @@
                 <label for="distanceName" class="block text-sm font-medium text-gray-700 mb-2">Nome da Distância</label>
                 <input type="text" id="distanceName" placeholder="Ex: 5km, 10km, Meia Maratona" 
                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition mb-5">
-                <div class="flex justify-end gap-3">
+                <div class="flex justify-between gap-3">
                     <button id="cancelDistanceBtn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
-                    <button id="saveDistanceBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition shadow-md">Salvar Distância</button>
+                    <div class="flex gap-3">
+                        <button id="saveAndAddMoreDistanceBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition shadow-md">
+                            Salvar e Adicionar Outra
+                        </button>
+                        <button id="saveDistanceBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition shadow-md">Salvar</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -244,9 +305,32 @@
                 <input type="number" id="winnersCount" min="1" max="20" value="3" 
                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition mb-5">
                 
-                <div class="flex justify-end gap-3">
+                <div class="flex justify-between gap-3">
                     <button id="cancelCategoryBtn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
-                    <button id="saveCategoryBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition shadow-md">Salvar Categoria</button>
+                    <div class="flex gap-3">
+                        <button id="saveAndAddMoreCategoryBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition shadow-md">
+                            Salvar e Adicionar Outra
+                        </button>
+                        <button id="saveCategoryBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition shadow-md">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Name Modal -->
+    <div id="editNameModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md modal-container slide-in">
+            <div class="p-5 border-b border-gray-100">
+                <h3 id="editModalTitle" class="text-lg font-semibold text-gray-900">Editar Nome</h3>
+            </div>
+            <div class="p-5">
+                <label for="editNameInput" class="block text-sm font-medium text-gray-700 mb-2">Novo Nome</label>
+                <input type="text" id="editNameInput" 
+                       class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition mb-5">
+                <div class="flex justify-between gap-3">
+                    <button id="cancelEditBtn" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancelar</button>
+                    <button id="saveEditBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition shadow-md">Salvar</button>
                 </div>
             </div>
         </div>
@@ -280,6 +364,8 @@
                         <li>Você pode importar dados de planilhas (CSV ou Excel)</li>
                         <li>Use o botão de cadeado para bloquear/desbloquear edições</li>
                         <li>Os dados são salvos automaticamente no seu navegador</li>
+                        <li>Arraste as linhas para reorganizar, mantendo a ordem numérica</li>
+                        <li>Clique no nome da distância ou categoria para editar</li>
                     </ul>
                 </div>
                 
@@ -288,6 +374,46 @@
                         <i class="fas fa-info-circle"></i> Informação
                     </h4>
                     <p class="text-blue-700 text-sm">Este aplicativo funciona offline após carregado. Você pode instalá-lo como um app no seu celular.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Detail Modal -->
+    <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md detail-modal slide-in">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900">Detalhes do Atleta</h3>
+                <button id="closeDetailBtn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-5 detail-modal-content">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Número</p>
+                        <p id="detailNumber" class="font-medium">-</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Nome</p>
+                        <p id="detailName" class="font-medium">-</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Equipe</p>
+                        <p id="detailTeam" class="font-medium">-</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Sexo</p>
+                        <p id="detailGender" class="font-medium">-</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Categoria</p>
+                        <p id="detailCategory" class="font-medium">-</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Modalidade</p>
+                        <p id="detailModality" class="font-medium">-</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -335,17 +461,43 @@
             const emptyState = document.getElementById('emptyState');
             const distanceModal = document.getElementById('distanceModal');
             const categoryModal = document.getElementById('categoryModal');
+            const editNameModal = document.getElementById('editNameModal');
             const helpModal = document.getElementById('helpModal');
+            const detailModal = document.getElementById('detailModal');
+            const closeDetailBtn = document.getElementById('closeDetailBtn');
             const searchInput = document.getElementById('searchInput');
+            const clearSearchBtn = document.getElementById('clearSearchBtn');
             const importBtn = document.getElementById('importBtn');
             const exportBtn = document.getElementById('exportBtn');
             const importFile = document.getElementById('importFile');
             const importResults = document.getElementById('importResults');
             
+            // Edit modal elements
+            const editModalTitle = document.getElementById('editModalTitle');
+            const editNameInput = document.getElementById('editNameInput');
+            const cancelEditBtn = document.getElementById('cancelEditBtn');
+            const saveEditBtn = document.getElementById('saveEditBtn');
+            
+            // New buttons for multiple additions
+            const saveAndAddMoreDistanceBtn = document.getElementById('saveAndAddMoreDistanceBtn');
+            const saveAndAddMoreCategoryBtn = document.getElementById('saveAndAddMoreCategoryBtn');
+            
+            // Detail modal elements
+            const detailNumber = document.getElementById('detailNumber');
+            const detailName = document.getElementById('detailName');
+            const detailTeam = document.getElementById('detailTeam');
+            const detailGender = document.getElementById('detailGender');
+            const detailCategory = document.getElementById('detailCategory');
+            const detailModality = document.getElementById('detailModality');
+            
             // State
             let isLocked = false;
             let currentDistanceId = null;
+            let currentEditElement = null;
+            let currentEditType = null; // 'distance' or 'category'
             let importedData = [];
+            let draggedItem = null;
+            let selectedAthlete = null;
             
             // Initialize
             checkEmptyState();
@@ -358,21 +510,40 @@
             lockBtn.addEventListener('click', toggleLock);
             helpBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
             closeHelpBtn.addEventListener('click', () => helpModal.classList.add('hidden'));
+            closeDetailBtn.addEventListener('click', () => detailModal.classList.add('hidden'));
             importBtn.addEventListener('click', () => importFile.click());
             exportBtn.addEventListener('click', exportData);
             importFile.addEventListener('change', handleFileImport);
             searchInput.addEventListener('input', handleSearch);
+            clearSearchBtn.addEventListener('click', clearSearch);
+            
+            // Edit modal events
+            cancelEditBtn.addEventListener('click', () => editNameModal.classList.add('hidden'));
+            saveEditBtn.addEventListener('click', saveEditedName);
+            
+            // New event listeners for multiple additions
+            saveAndAddMoreDistanceBtn.addEventListener('click', () => {
+                saveDistance(false); // false = don't close modal
+            });
+            
+            saveAndAddMoreCategoryBtn.addEventListener('click', () => {
+                saveCategory(false); // false = don't close modal
+            });
             
             // Save data when leaving the page
             window.addEventListener('beforeunload', saveToLocalStorage);
             
             // Distance Modal
             document.getElementById('cancelDistanceBtn').addEventListener('click', hideDistanceModal);
-            document.getElementById('saveDistanceBtn').addEventListener('click', saveDistance);
+            document.getElementById('saveDistanceBtn').addEventListener('click', () => {
+                saveDistance(true); // true = close modal
+            });
             
             // Category Modal
             document.getElementById('cancelCategoryBtn').addEventListener('click', hideCategoryModal);
-            document.getElementById('saveCategoryBtn').addEventListener('click', saveCategory);
+            document.getElementById('saveCategoryBtn').addEventListener('click', () => {
+                saveCategory(true); // true = close modal
+            });
             
             // Functions
             function showDistanceModal() {
@@ -397,11 +568,55 @@
                 categoryModal.classList.add('hidden');
             }
             
-            function saveDistance() {
+            function showEditModal(type, currentName, element) {
+                currentEditType = type;
+                currentEditElement = element;
+                
+                if (type === 'distance') {
+                    editModalTitle.textContent = 'Editar Nome da Distância';
+                } else {
+                    editModalTitle.textContent = 'Editar Nome da Categoria';
+                }
+                
+                editNameInput.value = currentName;
+                editNameModal.classList.remove('hidden');
+                editNameInput.focus();
+            }
+            
+            function saveEditedName() {
+                const newName = editNameInput.value.trim();
+                if (newName) {
+                    if (currentEditType === 'distance') {
+                        // Update distance name
+                        const titleElement = currentEditElement.querySelector('h2');
+                        titleElement.textContent = newName;
+                    } else {
+                        // Update category name
+                        const titleElement = currentEditElement.querySelector('h3');
+                        titleElement.textContent = newName;
+                    }
+                    
+                    editNameModal.classList.add('hidden');
+                    saveToLocalStorage();
+                    showToast('Nome atualizado com sucesso!', 'success');
+                } else {
+                    showToast('Por favor, insira um nome válido', 'error');
+                }
+            }
+            
+            function saveDistance(closeModal = true) {
                 const name = document.getElementById('distanceName').value.trim();
                 if (name) {
                     createDistanceBlock(name);
-                    hideDistanceModal();
+                    
+                    if (closeModal) {
+                        hideDistanceModal();
+                    } else {
+                        // Clear the input for next entry
+                        document.getElementById('distanceName').value = '';
+                        document.getElementById('distanceName').focus();
+                    }
+                    
                     checkEmptyState();
                     saveToLocalStorage();
                     
@@ -412,13 +627,22 @@
                 }
             }
             
-            function saveCategory() {
+            function saveCategory(closeModal = true) {
                 const name = document.getElementById('categoryName').value.trim();
                 const winnersCount = parseInt(document.getElementById('winnersCount').value);
                 
                 if (name && winnersCount > 0) {
                     createCategoryBlock(currentDistanceId, name, winnersCount);
-                    hideCategoryModal();
+                    
+                    if (closeModal) {
+                        hideCategoryModal();
+                    } else {
+                        // Clear the inputs for next entry
+                        document.getElementById('categoryName').value = '';
+                        document.getElementById('winnersCount').value = 3;
+                        document.getElementById('categoryName').focus();
+                    }
+                    
                     saveToLocalStorage();
                     
                     // Show success feedback
@@ -437,7 +661,7 @@
                 
                 distanceBlock.innerHTML = `
                     <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                        <div>
+                        <div class="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition" data-distance="${distanceId}">
                             <h2 class="font-semibold text-gray-800 responsive-text">${name}</h2>
                             <p class="text-xs text-gray-500 mt-1">Distância</p>
                         </div>
@@ -473,6 +697,15 @@
                     }
                 });
                 
+                // Add click event to edit distance name
+                const titleContainer = distanceBlock.querySelector('div[data-distance]');
+                titleContainer.addEventListener('click', function(e) {
+                    if (!isLocked && e.target.tagName !== 'BUTTON') {
+                        const currentName = distanceBlock.querySelector('h2').textContent;
+                        showEditModal('distance', currentName, distanceBlock);
+                    }
+                });
+                
                 return distanceBlock;
             }
             
@@ -489,7 +722,7 @@
                 
                 categoryBlock.innerHTML = `
                     <div class="flex justify-between items-center mb-3">
-                        <div>
+                        <div class="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition" data-category="${categoryId}">
                             <h3 class="font-medium text-gray-700 responsive-text">${name}</h3>
                             <p class="text-xs text-gray-500 mt-1">Categoria</p>
                         </div>
@@ -515,11 +748,23 @@
                     }
                 });
                 
+                // Add click event to edit category name
+                const titleContainer = categoryBlock.querySelector('div[data-category]');
+                titleContainer.addEventListener('click', function(e) {
+                    if (!isLocked && e.target.tagName !== 'BUTTON') {
+                        const currentName = categoryBlock.querySelector('h3').textContent;
+                        showEditModal('category', currentName, categoryBlock);
+                    }
+                });
+                
                 // Create winners
                 const winnersContainer = categoryBlock.querySelector('.winners-container');
                 for (let i = 1; i <= winnersCount; i++) {
                     createWinnerRow(winnersContainer, i);
                 }
+                
+                // Initialize drag and drop for this category
+                setupDragAndDrop(winnersContainer);
                 
                 return categoryBlock;
             }
@@ -527,12 +772,13 @@
             function createWinnerRow(container, position) {
                 const row = document.createElement('div');
                 row.className = 'winner-row fade-in';
+                row.draggable = true;
                 
                 row.innerHTML = `
                     <div class="number-bubble rounded-full bg-red-500 text-white flex items-center justify-center cursor-pointer hover:opacity-90 transition" data-position="${position}">
                         ${position}
                     </div>
-                    <input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Número" maxlength="5" class="number-input px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition input-field">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Número" maxlength="6" class="number-input px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition input-field">
                     <input type="text" placeholder="Nome" maxlength="30" class="name-input px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent transition input-field">
                 `;
                 
@@ -555,8 +801,8 @@
                 const numberInput = row.querySelector('.number-input');
                 numberInput.addEventListener('change', saveToLocalStorage);
                 numberInput.addEventListener('input', function() {
-                    // Allow only numbers and limit to 5 characters
-                    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 5);
+                    // Allow only numbers and limit to 6 characters
+                    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
                 });
                 
                 const nameInput = row.querySelector('.name-input');
@@ -566,6 +812,81 @@
                 });
                 
                 return row;
+            }
+            
+            function setupDragAndDrop(container) {
+                const rows = container.querySelectorAll('.winner-row');
+                
+                rows.forEach(row => {
+                    row.addEventListener('dragstart', function(e) {
+                        if (isLocked) {
+                            e.preventDefault();
+                            return;
+                        }
+                        draggedItem = row;
+                        setTimeout(() => {
+                            row.classList.add('dragging');
+                        }, 0);
+                    });
+                    
+                    row.addEventListener('dragend', function() {
+                        row.classList.remove('dragging');
+                        draggedItem = null;
+                    });
+                    
+                    row.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                        if (!draggedItem || isLocked) return;
+                        
+                        // Highlight drop target
+                        this.classList.add('drop-target');
+                    });
+                    
+                    row.addEventListener('dragleave', function() {
+                        this.classList.remove('drop-target');
+                    });
+                    
+                    row.addEventListener('drop', function(e) {
+                        e.preventDefault();
+                        this.classList.remove('drop-target');
+                        
+                        if (!draggedItem || draggedItem === this || isLocked) return;
+                        
+                        // Swap the inputs between the dragged item and the target
+                        const draggedNumber = draggedItem.querySelector('.number-input').value;
+                        const draggedName = draggedItem.querySelector('.name-input').value;
+                        const draggedBubble = draggedItem.querySelector('.number-bubble');
+                        const draggedIsGreen = draggedBubble.classList.contains('bg-green-500');
+                        
+                        const targetNumber = this.querySelector('.number-input').value;
+                        const targetName = this.querySelector('.name-input').value;
+                        const targetBubble = this.querySelector('.number-bubble');
+                        const targetIsGreen = targetBubble.classList.contains('bg-green-500');
+                        
+                        // Swap values
+                        draggedItem.querySelector('.number-input').value = targetNumber;
+                        draggedItem.querySelector('.nameInput').value = targetName;
+                        if (targetIsGreen) {
+                            draggedBubble.classList.remove('bg-red-500');
+                            draggedBubble.classList.add('bg-green-500');
+                        } else {
+                            draggedBubble.classList.remove('bg-green-500');
+                            draggedBubble.classList.add('bg-red-500');
+                        }
+                        
+                        this.querySelector('.number-input').value = draggedNumber;
+                        this.querySelector('.name-input').value = draggedName;
+                        if (draggedIsGreen) {
+                            targetBubble.classList.remove('bg-red-500');
+                            targetBubble.classList.add('bg-green-500');
+                        } else {
+                            targetBubble.classList.remove('bg-green-500');
+                            targetBubble.classList.add('bg-red-500');
+                        }
+                        
+                        saveToLocalStorage();
+                    });
+                });
             }
             
             function clearAll() {
@@ -638,13 +959,13 @@
                                         columnMapping.number = key;
                                     } else if (lowerKey.includes('nome')) {
                                         columnMapping.name = key;
-                                    } else if (lowerKey.includes('equipe')) {
+                                    } else if (lowerKey.includes('equipe') || lowerKey.includes('time') || lowerKey.includes('clube')) {
                                         columnMapping.team = key;
-                                    } else if (lowerKey.includes('sexo')) {
+                                    } else if (lowerKey.includes('sexo') || lowerKey.includes('gênero') || lowerKey.includes('genero')) {
                                         columnMapping.gender = key;
-                                    } else if (lowerKey.includes('faixa') || lowerKey.includes('idade')) {
-                                        columnMapping.ageGroup = key;
-                                    } else if (lowerKey.includes('modalidade') || lowerKey.includes('distância') || lowerKey.includes('distancia')) {
+                                    } else if (lowerKey.includes('categoria') || lowerKey.includes('faixa') || lowerKey.includes('idade') || lowerKey.includes('class')) {
+                                        columnMapping.category = key;
+                                    } else if (lowerKey.includes('modalidade') || lowerKey.includes('distância') || lowerKey.includes('distancia') || lowerKey.includes('prova') || lowerKey.includes('evento')) {
                                         columnMapping.modality = key;
                                     }
                                 }
@@ -656,7 +977,7 @@
                                         NOME: columnMapping.name ? row[columnMapping.name] : '',
                                         EQUIPE: columnMapping.team ? row[columnMapping.team] : '',
                                         SEXO: columnMapping.gender ? row[columnMapping.gender] : '',
-                                        FAIXA_ETARIA: columnMapping.ageGroup ? row[columnMapping.ageGroup] : '',
+                                        CATEGORIA: columnMapping.category ? row[columnMapping.category] : '',
                                         MODALIDADE: columnMapping.modality ? row[columnMapping.modality] : ''
                                     };
                                 });
@@ -712,17 +1033,22 @@
                     return;
                 }
                 
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'table-container w-full';
+                
                 const table = document.createElement('div');
                 table.className = 'w-full text-xs border border-gray-200 rounded-lg overflow-hidden';
+                table.style.minWidth = '600px'; // Ensure enough space for all columns
                 
                 // Header
                 const headerRow = document.createElement('div');
                 headerRow.className = 'flex bg-gray-100 font-medium border-b border-gray-200';
                 headerRow.innerHTML = `
-                    <div class="p-2 w-1/6 border-r border-gray-200">Pos</div>
                     <div class="p-2 w-1/6 border-r border-gray-200">Número</div>
                     <div class="p-2 w-2/6 border-r border-gray-200">Nome</div>
                     <div class="p-2 w-1/6 border-r border-gray-200">Equipe</div>
+                    <div class="p-2 w-1/6 border-r border-gray-200">Sexo</div>
+                    <div class="p-2 w-1/6 border-r border-gray-200">Categoria</div>
                     <div class="p-2 w-1/6">Modalidade</div>
                 `;
                 table.appendChild(headerRow);
@@ -732,62 +1058,39 @@
                     const row = document.createElement('div');
                     row.className = 'flex border-b border-gray-200 hover:bg-gray-50 cursor-pointer';
                     row.innerHTML = `
-                        <div class="p-2 w-1/6 border-r border-gray-200">${index + 1}</div>
                         <div class="p-2 w-1/6 border-r border-gray-200">${item.NUMERO || item.numero || ''}</div>
                         <div class="p-2 w-2/6 border-r border-gray-200">${item.NOME || item.nome || ''}</div>
                         <div class="p-2 w-1/6 border-r border-gray-200">${item.EQUIPE || item.equipe || ''}</div>
+                        <div class="p-2 w-1/6 border-r border-gray-200">${item.SEXO || item.sexo || ''}</div>
+                        <div class="p-2 w-1/6 border-r border-gray-200">${item.CATEGORIA || item.categoria || ''}</div>
                         <div class="p-2 w-1/6">${item.MODALIDADE || item.modalidade || ''}</div>
                     `;
                     
-                    // Add click event to fill data
+                    // Add click event to show details
                     row.addEventListener('click', function() {
-                        searchInput.value = '';
-                        importResults.classList.add('hidden');
-                        
-                        // Try to find matching distance and category
-                        const modality = item.MODALIDADE || item.modalidade || '';
-                        const gender = item.SEXO || item.sexo || '';
-                        const ageGroup = item.FAIXA_ETARIA || item.faixa_etaria || '';
-                        
-                        if (modality) {
-                            let distanceBlock = findDistanceBlock(modality);
-                            
-                            if (!distanceBlock && confirm(`Deseja criar uma nova distância "${modality}"?`)) {
-                                distanceBlock = createDistanceBlock(modality);
-                                checkEmptyState();
-                            }
-                            
-                            if (distanceBlock && (gender || ageGroup)) {
-                                const categoryName = [gender, ageGroup].filter(Boolean).join(' ');
-                                let categoryBlock = findCategoryBlock(distanceBlock, categoryName);
-                                
-                                if (!categoryBlock && confirm(`Deseja criar uma nova categoria "${categoryName}" na distância "${modality}"?`)) {
-                                    categoryBlock = createCategoryBlock(distanceBlock.id, categoryName, 3);
-                                }
-                                
-                                if (categoryBlock) {
-                                    // Focus on first empty input in category
-                                    const firstEmptyInput = categoryBlock.querySelector('input[value=""]');
-                                    if (firstEmptyInput) {
-                                        firstEmptyInput.focus();
-                                        if (item.NUMERO || item.numero) {
-                                            firstEmptyInput.value = item.NUMERO || item.numero;
-                                            const nameInput = firstEmptyInput.nextElementSibling;
-                                            if (nameInput && (item.NOME || item.nome)) {
-                                                nameInput.value = item.NOME || item.nome;
-                                                nameInput.focus();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        showAthleteDetails(item);
                     });
                     
                     table.appendChild(row);
                 });
                 
-                importResults.appendChild(table);
+                tableContainer.appendChild(table);
+                importResults.appendChild(tableContainer);
+            }
+            
+            function showAthleteDetails(athlete) {
+                selectedAthlete = athlete;
+                
+                // Set details in modal
+                detailNumber.textContent = athlete.NUMERO || athlete.numero || '-';
+                detailName.textContent = athlete.NOME || athlete.nome || '-';
+                detailTeam.textContent = athlete.EQUIPE || athlete.equipe || '-';
+                detailGender.textContent = athlete.SEXO || athlete.sexo || '-';
+                detailCategory.textContent = athlete.CATEGORIA || athlete.categoria || '-';
+                detailModality.textContent = athlete.MODALIDADE || athlete.modalidade || '-';
+                
+                // Show modal
+                detailModal.classList.remove('hidden');
             }
             
             function findDistanceBlock(name) {
@@ -816,6 +1119,13 @@
             function handleSearch() {
                 const query = searchInput.value.toLowerCase();
                 
+                // Show/hide clear button
+                if (query) {
+                    clearSearchBtn.classList.remove('hidden');
+                } else {
+                    clearSearchBtn.classList.add('hidden');
+                }
+                
                 if (!query) {
                     // Show all if search is empty
                     document.querySelectorAll('.categories-container > div').forEach(category => {
@@ -835,83 +1145,50 @@
                     
                     if (filtered.length > 0) {
                         importResults.innerHTML = '';
+                        const tableContainer = document.createElement('div');
+                        tableContainer.className = 'table-container w-full';
+                        
                         const table = document.createElement('div');
                         table.className = 'w-full text-xs border border-gray-200 rounded-lg overflow-hidden';
+                        table.style.minWidth = '600px';
                         
                         // Header
                         const headerRow = document.createElement('div');
                         headerRow.className = 'flex bg-gray-100 font-medium border-b border-gray-200';
                         headerRow.innerHTML = `
-                            <div class="p-2 w-1/6 border-r border-gray-200">Pos</div>
                             <div class="p-2 w-1/6 border-r border-gray-200">Número</div>
                             <div class="p-2 w-2/6 border-r border-gray-200">Nome</div>
                             <div class="p-2 w-1/6 border-r border-gray-200">Equipe</div>
+                            <div class="p-2 w-1/6 border-r border-gray-200">Sexo</div>
+                            <div class="p-2 w-1/6 border-r border-gray-200">Categoria</div>
                             <div class="p-2 w-1/6">Modalidade</div>
                         `;
-                        table.appendChild(headerRow);
+                table.appendChild(headerRow);
                         
                         // Rows
                         filtered.forEach((item, index) => {
                             const row = document.createElement('div');
                             row.className = 'flex border-b border-gray-200 hover:bg-gray-50 cursor-pointer';
                             row.innerHTML = `
-                                <div class="p-2 w-1/6 border-r border-gray-200">${index + 1}</div>
                                 <div class="p-2 w-1/6 border-r border-gray-200">${item.NUMERO || item.numero || ''}</div>
                                 <div class="p-2 w-2/6 border-r border-gray-200">${item.NOME || item.nome || ''}</div>
                                 <div class="p-2 w-1/6 border-r border-gray-200">${item.EQUIPE || item.equipe || ''}</div>
+                                <div class="p-2 w-1/6 border-r border-gray-200">${item.SEXO || item.sexo || ''}</div>
+                                <div class="p-2 w-1/6 border-r border-gray-200">${item.CATEGORIA || item.categoria || ''}</div>
                                 <div class="p-2 w-1/6">${item.MODALIDADE || item.modalidade || ''}</div>
                             `;
                             
-                            // Add click event to fill data
+                            // Add click event to show details
                             row.addEventListener('click', function() {
-                                searchInput.value = '';
-                                importResults.classList.add('hidden');
-                                
-                                // Try to find matching distance and category
-                                const modality = item.MODALIDADE || item.modalidade || '';
-                                const gender = item.SEXO || item.sexo || '';
-                                const ageGroup = item.FAIXA_ETARIA || item.faixa_etaria || '';
-                                
-                                if (modality) {
-                                    let distanceBlock = findDistanceBlock(modality);
-                                    
-                                    if (!distanceBlock && confirm(`Deseja criar uma nova distância "${modality}"?`)) {
-                                        distanceBlock = createDistanceBlock(modality);
-                                        checkEmptyState();
-                                    }
-                                    
-                                    if (distanceBlock && (gender || ageGroup)) {
-                                        const categoryName = [gender, ageGroup].filter(Boolean).join(' ');
-                                        let categoryBlock = findCategoryBlock(distanceBlock, categoryName);
-                                        
-                                        if (!categoryBlock && confirm(`Deseja criar uma nova categoria "${categoryName}" na distância "${modality}"?`)) {
-                                            categoryBlock = createCategoryBlock(distanceBlock.id, categoryName, 3);
-                                        }
-                                        
-                                        if (categoryBlock) {
-                                            // Focus on first empty input in category
-                                            const firstEmptyInput = categoryBlock.querySelector('input[value=""]');
-                                            if (firstEmptyInput) {
-                                                firstEmptyInput.focus();
-                                                if (item.NUMERO || item.numero) {
-                                                    firstEmptyInput.value = item.NUMERO || item.numero;
-                                                    const nameInput = firstEmptyInput.nextElementSibling;
-                                                    if (nameInput && (item.NOME || item.nome)) {
-                                                        nameInput.value = item.NOME || item.nome;
-                                                        nameInput.focus();
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                showAthleteDetails(item);
                             });
                             
                             table.appendChild(row);
                         });
                         
+                        tableContainer.appendChild(table);
                         importResults.innerHTML = '';
-                        importResults.appendChild(table);
+                        importResults.appendChild(tableContainer);
                         importResults.classList.remove('hidden');
                     } else {
                         importResults.innerHTML = '<p class="text-gray-500 p-3 text-center">Nenhum resultado encontrado</p>';
@@ -931,6 +1208,12 @@
                         row.style.display = 'none';
                     }
                 });
+            }
+            
+            function clearSearch() {
+                searchInput.value = '';
+                clearSearchBtn.classList.add('hidden');
+                handleSearch();
             }
             
             function exportData() {
